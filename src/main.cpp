@@ -4,14 +4,9 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
-#define DHTTYPE DHT22
-#define DHTPIN  2
+#include "config.h"
 
-String client_id        = "sensor_sys_out";
-const char* ssid        = "ADSY-PUB";
-const char* password    = "P455W0RD";
-const char* mqtt_server = "185.19.28.101";
- 
+
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -20,33 +15,33 @@ char msg[50];
 int value = 0;
 char conv_string[15];
 
- 
-// Initialize DHT sensor 
+
+// Initialize DHT sensor
 // NOTE: For working with a faster than ATmega328p 16 MHz Arduino chip, like an ESP8266,
 // you need to increase the threshold for cycle counts considered a 1 or 0.
 // You can do this by passing a 3rd parameter for this threshold.  It's a bit
 // of fiddling to find the right value, but in general the faster the CPU the
 // higher the value.  The default for a 16mhz AVR is a value of 6.  For an
 // Arduino Due that runs at 84mhz a value of 30 works.
-// This is for the ESP8266 processor on ESP-01 
+// This is for the ESP8266 processor on ESP-01
 DHT dht(DHTPIN, DHTTYPE, 11); // 11 works fine for ESP8266
- 
+
 float humidity, temp_f, temp_c;  // Values read from sensor
 // Generally, you should use "unsigned long" for variables that hold time
 unsigned long previousMillis = 0;        // will store last temp was read
 const long interval = 2000;              // interval at which to read sensor
- 
+
 void gettemperature() {
   // Wait at least 2 seconds seconds between measurements.
   // if the difference between the current time and last time you read
   // the sensor is bigger than the interval you set, read the sensor
   // Works better than delay for things happening elsewhere also
   unsigned long currentMillis = millis();
- 
+
   if(currentMillis - previousMillis >= interval) {
-    // save the last time you read the sensor 
-    previousMillis = currentMillis;   
- 
+    // save the last time you read the sensor
+    previousMillis = currentMillis;
+
     // Reading temperature for humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
     humidity = dht.readHumidity();          // Read humidity (percent)
@@ -86,7 +81,7 @@ void reconnect() {
     Serial.print("Attempting MQTT connection...");
 
     // Create a random client ID
-    String clientId = client_id + "-";
+    String clientId = String(CLIENT_ID) + "-";
     clientId += String(random(0xffff), HEX);
 
     // Attempt to connect
@@ -107,13 +102,13 @@ void reconnect() {
 }
 
 void setup(void) {
-  Serial.begin(115200); // initialize serial connection
+  Serial.begin(SERIAL_BAUD); // initialize serial connection
   dht.begin();          // initialize dht sensor
- 
+
   // Connect to WiFi network
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("\n\r \n\rWorking to connect");
- 
+
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -123,15 +118,15 @@ void setup(void) {
   Serial.println("");
   Serial.println("DHT Weather Reading Server");
   Serial.print("Connected to ");
-  Serial.println(ssid);
+  Serial.println(WIFI_SSID);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
   // Start the Pub/Sub client
-  client.setServer(mqtt_server, 1883);
+  client.setServer(MQTT_SERVER, 1883);
   client.setCallback(callback);
 }
- 
+
 void loop(void) {
   if (!client.connected()) {
     reconnect();
@@ -149,7 +144,7 @@ void loop(void) {
     char JSONmessageBuffer[300];
     JsonObject& JSONencoder = JSONbuffer.createObject();
 
-    JSONencoder["sensor"]      = client_id;
+    JSONencoder["sensor"]      = CLIENT_ID;
     JSONencoder["humidity"]    = (int)humidity;
     JSONencoder["temperature"] = (float)temp_c;
 
@@ -157,5 +152,4 @@ void loop(void) {
 
     client.publish("sysensors/sensor_sys_out/temperature", JSONmessageBuffer);
   }
-} 
- 
+}
