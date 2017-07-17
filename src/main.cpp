@@ -1,3 +1,4 @@
+/* test */
 
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
@@ -10,8 +11,21 @@
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+#define SENSORDATA_JSON_SIZE (JSON_OBJECT_SIZE(3))
+struct SDATA {
+   float       humidity;
+   float       temperature;
+   const char* sensor_name;
+} sensor_data = {
+  00.0001,
+  00.0001,
+  CLIENT_ID
+}; 
+
+
+
 long lastMsg = 0;
-char msg[50];
+char msg[128];
 int value = 0;
 char conv_string[15];
 
@@ -52,6 +66,8 @@ void gettemperature() {
       Serial.println("Failed to read from DHT sensor!");
       return;
     }
+    sensor_data.humidity    = humidity;
+    sensor_data.temperature = temp_c;
   }
 }
 
@@ -140,16 +156,16 @@ void loop(void) {
 
     gettemperature();       // read sensor
 
-    StaticJsonBuffer<300> JSONbuffer;
-    char JSONmessageBuffer[300];
-    JsonObject& JSONencoder = JSONbuffer.createObject();
+    StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
+    JsonObject& root    = jsonBuffer.createObject();
+    root["humidity"]    = sensor_data.humidity + 0.0001;
+    root["sensor_name"] = CLIENT_ID;
+    root["temperature"] = sensor_data.temperature + 0.0001;
+    root.printTo(msg, 128);
 
-    JSONencoder["sensor"]      = CLIENT_ID;
-    JSONencoder["humidity"]    = (int)humidity;
-    JSONencoder["temperature"] = (float)temp_c;
+    Serial.println("Temperature: " + String(sensor_data.temperature));
+    Serial.println("Humidity: " + String(sensor_data.humidity));
 
-    JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
-
-    client.publish("sysensors/sensor_sys_out/temperature", JSONmessageBuffer);
+    client.publish("sysensors/sensor_sys_out/temperature", msg);
   }
 }
