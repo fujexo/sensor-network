@@ -1,3 +1,4 @@
+
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <PubSubClient.h>
@@ -7,9 +8,9 @@
 #define DHTPIN  2
 
 String client_id        = "sensor_sys_out";
-const char* ssid        = "WIFI";
-const char* password    = "very_secure_p455w0rd";
-const char* mqtt_server = "mqtt-broker.example.com";
+const char* ssid        = "ADSY-PUB";
+const char* password    = "P455W0RD";
+const char* mqtt_server = "185.19.28.101";
  
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -34,63 +35,6 @@ float humidity, temp_f, temp_c;  // Values read from sensor
 // Generally, you should use "unsigned long" for variables that hold time
 unsigned long previousMillis = 0;        // will store last temp was read
 const long interval = 2000;              // interval at which to read sensor
- 
-void setup(void)
-{
-  Serial.begin(115200); // initialize serial connection
-  dht.begin();          // initialize dht sensor
- 
-  // Connect to WiFi network
-  WiFi.begin(ssid, password);
-  Serial.print("\n\r \n\rWorking to connect");
- 
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  Serial.println("");
-  Serial.println("DHT Weather Reading Server");
-  Serial.print("Connected to ");
-  Serial.println(ssid);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-
-  // Start the Pub/Sub client
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
-
-}
- 
-void loop(void)
-{
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-
-
-  long now = millis();
-  if (now - lastMsg > 10000) {
-    lastMsg = now;
-
-    gettemperature();       // read sensor
-
-    StaticJsonBuffer<300> JSONbuffer;
-    char JSONmessageBuffer[300];
-    JsonObject& JSONencoder = JSONbuffer.createObject();
-
-    JSONencoder["sensor"]      = client_id;
-    JSONencoder["humidity"]    = (int)humidity;
-    JSONencoder["temperature"] = (float)temp_c;
-
-    JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
-
-    client.publish("sysensors/sensor_sys_out/temperature", JSONmessageBuffer);
-  }
-
-} 
  
 void gettemperature() {
   // Wait at least 2 seconds seconds between measurements.
@@ -136,7 +80,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 }
 
-
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
@@ -163,3 +106,56 @@ void reconnect() {
   }
 }
 
+void setup(void) {
+  Serial.begin(115200); // initialize serial connection
+  dht.begin();          // initialize dht sensor
+ 
+  // Connect to WiFi network
+  WiFi.begin(ssid, password);
+  Serial.print("\n\r \n\rWorking to connect");
+ 
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("DHT Weather Reading Server");
+  Serial.print("Connected to ");
+  Serial.println(ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  // Start the Pub/Sub client
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+}
+ 
+void loop(void) {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+
+  long now = millis();
+  if (now - lastMsg > 10000) {
+    lastMsg = now;
+
+    gettemperature();       // read sensor
+
+    StaticJsonBuffer<300> JSONbuffer;
+    char JSONmessageBuffer[300];
+    JsonObject& JSONencoder = JSONbuffer.createObject();
+
+    JSONencoder["sensor"]      = client_id;
+    JSONencoder["humidity"]    = (int)humidity;
+    JSONencoder["temperature"] = (float)temp_c;
+
+    JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
+
+    client.publish("sysensors/sensor_sys_out/temperature", JSONmessageBuffer);
+  }
+} 
+ 
