@@ -22,7 +22,7 @@ struct SDATA {
   CLIENT_ID
 }; 
 
-
+char pub_topic[64];
 
 long lastMsg = 0;
 char msg[128];
@@ -138,6 +138,8 @@ void setup(void) {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
+  snprintf( pub_topic, 64, "sysensors/%s/temperature", CLIENT_ID );
+
   // Start the Pub/Sub client
   client.setServer(MQTT_SERVER, 1883);
   client.setCallback(callback);
@@ -166,6 +168,6 @@ void loop(void) {
     Serial.println("Temperature: " + String(sensor_data.temperature));
     Serial.println("Humidity: " + String(sensor_data.humidity));
 
-    client.publish("sysensors/sensor_sys_out/temperature", msg);
+    client.publish(pub_topic, msg);
   }
 }
