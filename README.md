@@ -3,3 +3,27 @@
 # Code is WIP!!!
 
 Please see the [Wiki](https://github.com/fujexo/sensor-network/wiki) for more information
+
+
+
+
+
+## Wire the DHT22
+10kOhm Resistor from VCC to DATA
+DATA Pin to Pin D4 on a NodeMCU board
+
+   _ _ _ _
+  |       |
+  | DHT22 |
+  ||-|-|-||
+
+VCC NC DATA GND
+
+
+## Flash the code 
+
+edit the settings in src/config.h
+Flash the code to the board:
+```
+platformio run -t upload
+```
