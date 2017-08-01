@@ -12,13 +12,14 @@ Please see the [Wiki](https://github.com/fujexo/sensor-network/wiki) for more in
 10kOhm Resistor from VCC to DATA
 DATA Pin to Pin D4 on a NodeMCU board
 
+```
    _ _ _ _
   |       |
   | DHT22 |
   ||-|-|-||
 
 VCC NC DATA GND
-
+```
 
 ## Flash the code 
 
