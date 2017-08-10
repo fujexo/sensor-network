@@ -2,22 +2,23 @@
 
 import json
 import logging
+import os
 from influxdb import InfluxDBClient
 import paho.mqtt.client as mqtt
 
 # InfluxDB settings
-influx_host = "localhost"
-influx_port = 8086
-influx_user = "username"
-influx_pass = "password"
-influx_daba = "database"
+influx_host = os.environ['INFLUX_HOST']
+influx_port = os.environ['INFLUX_PORT']
+influx_user = os.environ['INFLUX_USER']
+influx_pass = os.environ['INFLUX_PASS']
+influx_daba = os.environ['INFLUX_DABA']
 
 # MQTT settings
-mqtt_host = "localhost"
-mqtt_port = 1883
+mqtt_host = os.environ['MQTT_HOST']
+mqtt_port = os.environ['MQTT_PORT']
 
 # Logging settings
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 def on_connect(client, userdata, flags, rc):
     client.subscribe("sysensors/+/temperature")

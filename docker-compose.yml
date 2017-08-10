@@ -3,26 +3,56 @@ version: '2'
 services:
   influxdb:
     image: influxdb
+    container_name: influxdb
     ports:
-      - 8086:8086
+      - "${INFLUX_PORT}:${INFLUX_PORT}"
     volumes:
-      - ./influxdb/etc/:/etc/influxdb
       - ./influxdb/var:/var/lib/influxdb
       - /etc/localtime:/etc/localtime:ro
+    environment:
+      - INFLUXDB_HTTP_BIND_ADDRESS=${INFLUXDB_HTTP_BIND_ADDRESS}
+      - INFLUXDB_META_DIR=${INFLUXDB_META_DIR}
+      - INFLUXDB_DATA_DIR=${INFLUXDB_DATA_DIR}
+      - INFLUXDB_DATA_ENGINE=${INFLUXDB_DATA_ENGINE}
+      - INFLUXDB_DATA_WAL_DIR=${INFLUXDB_DATA_WAL_DIR}
   
   # MQTT Broker in Docker
   mosquitto:
     image: eclipse-mosquitto
+    container_name: mosquitto
     ports:
-      - 1883:1883
+      - "${MQTT_PORT}:${MQTT_PORT}"
     volumes:
       - /etc/localtime:/etc/localtime:ro
   
   grafana:
     image: grafana/grafana
     ports:
-      - 3000:3000
+      - "${GF_SERVER_PORT}:${GF_SERVER_PORT}"
     volumes:
-      - ./grafana/etc:/etc/grafana
       - ./grafana/var:/var/lib/grafana
       - /etc/localtime:/etc/localtime:ro
+    environment:
+      - GF_SERVER_PORT=${GF_SERVER_PORT}
+      - GF_DATABASE_TYPE=${GF_DATABASE_TYPE}
+      - GF_DATABASE_HOST=${GF_DATABASE_HOST}
+      - GF_DATABASE_NAME=${GF_DATABASE_NAME}
+      - GF_DATABASE_USER=${GF_DATABASE_USER}
+      - GF_DATABASE_PASSWORD=${GF_DATABASE_PASSWORD}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+      - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED}
+      - GF_AUTH_ANONYMOUS_ORG_NAME=${GF_AUTH_ANONYMOUS_ORG_NAME}
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=${GF_AUTH_ANONYMOUS_ORG_ROLE}
+
+  mqtttransport:
+    build: mqtttransport
+    command: python /mqtt-influx.py
+    environment:
+      - MQTT_PORT=${MQTT_PORT}
+      - MQTT_HOST=${MQTT_HOST}
+      - INFLUX_HOST=${INFLUX_HOST}
+      - INFLUX_PORT=${INFLUX_PORT}
+      - INFLUX_USER=${INFLUX_USER}
+      - INFLUX_PASS=${INFLUX_PASS}
+      - INFLUX_DABA=${INFLUX_DABA}
+
