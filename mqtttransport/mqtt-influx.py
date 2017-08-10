@@ -18,7 +18,7 @@ mqtt_host = os.environ['MQTT_HOST']
 mqtt_port = os.environ['MQTT_PORT']
 
 # Logging settings
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
 def on_connect(client, userdata, flags, rc):
     client.subscribe("sysensors/+/temperature")
