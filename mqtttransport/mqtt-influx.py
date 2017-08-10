@@ -15,7 +15,7 @@ influx_daba = os.environ['INFLUX_DABA']
 
 # MQTT settings
 mqtt_host = os.environ['MQTT_HOST']
-mqtt_port = os.environ['MQTT_PORT']
+mqtt_port = int(os.environ['MQTT_PORT'])
 
 # Logging settings
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
