@@ -10,7 +10,6 @@ services:
       - ./influxdb/var:/var/lib/influxdb
       - /etc/localtime:/etc/localtime:ro
     environment:
-      - INFLUXDB_HTTP_BIND_ADDRESS=${INFLUXDB_HTTP_BIND_ADDRESS}
       - INFLUXDB_META_DIR=${INFLUXDB_META_DIR}
       - INFLUXDB_DATA_DIR=${INFLUXDB_DATA_DIR}
       - INFLUXDB_DATA_ENGINE=${INFLUXDB_DATA_ENGINE}
@@ -49,7 +48,7 @@ services:
     command: python /mqtt-influx.py
     environment:
       - MQTT_PORT=${MQTT_PORT}
-      - MQTT_HOST=${MQTT_HOST}
+      - MQTT_HOST=mosquitto
       - INFLUX_HOST=${INFLUX_HOST}
       - INFLUX_PORT=${INFLUX_PORT}
       - INFLUX_USER=${INFLUX_USER}
