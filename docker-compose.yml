@@ -3,6 +3,7 @@ version: '2'
 services:
   influxdb:
     image: influxdb
+    container_name: influxdb
     ports:
       - "${INFLUX_PORT}:${INFLUX_PORT}"
     volumes:
@@ -12,6 +13,7 @@ services:
   # MQTT Broker in Docker
   mosquitto:
     image: eclipse-mosquitto
+    container_name: mosquitto
     ports:
       - "${MQTT_PORT}:${MQTT_PORT}"
     volumes:
