@@ -1,2 +1,6 @@
 .pioenvs
 .piolibdeps
+grafana/var/grafana.db
+influxdb/var/data/
+influxdb/var/meta/
+influxdb/var/wal/
