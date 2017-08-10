@@ -1,5 +1,6 @@
 .pioenvs
 .piolibdeps
+.env
 grafana/var/grafana.db
 influxdb/var/data/
 influxdb/var/meta/
