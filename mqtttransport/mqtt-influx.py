@@ -82,6 +82,7 @@ class MqttTransport:
     def run(self):
         self.setup_mqtt_client()
         self.setup_influx_client()
+        loggin.info('Starting to work')
 
         while True:
             try:
