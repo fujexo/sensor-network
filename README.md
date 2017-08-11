@@ -37,7 +37,7 @@ platformio run -t upload
 ## Ports to open
 
 * 3000 (Grafana - show graphs) HTTP
-* 8086 (Mosquitto - incoming data) MQTT
+* 1883 (Mosquitto - incoming data) MQTT
 
 
 ## Configure Grafana
