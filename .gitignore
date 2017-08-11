@@ -2,3 +2,5 @@
 .piolibdeps
 .env
 data/*
+.clang_complete
+.gcc-flags.json
