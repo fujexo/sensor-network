@@ -35,7 +35,7 @@ services:
     ports:
       - "${GF_SERVER_PORT}:${GF_SERVER_PORT}"
     volumes:
-      - ./grafana/var:/var/lib/grafana
+      - ./data/grafana:/var/lib/grafana
       - /etc/localtime:/etc/localtime:ro
     environment:
       - GF_SERVER_PORT=${GF_SERVER_PORT}
