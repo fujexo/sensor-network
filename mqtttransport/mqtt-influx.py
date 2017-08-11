@@ -96,5 +96,4 @@ class MqttTransport:
 
 if __name__ == "__main__":
     transport = MqttTransport()
-    transport.setup()
     transport.run()
