@@ -2,5 +2,6 @@
 .piolibdeps
 .env
 data/*
+src\config.h
 .clang_complete
 .gcc-flags.json
