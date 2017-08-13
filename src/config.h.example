@@ -1,0 +1,13 @@
+#ifndef __CONFIG_H
+  #define __CONFIG_H
+
+  #define SERIAL_BAUD     115200
+
+  #define DHTTYPE         DHT22
+  #define DHTPIN          2
+
+  #define CLIENT_ID       "sensor_name"
+  #define WIFI_SSID       "yourwifissid"
+  #define WIFI_PASSWORD   "yourwifipasswd"
+  #define MQTT_SERVER     "mqttserverip"
+#endif

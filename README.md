@@ -37,7 +37,7 @@ platformio run -t upload
 ## Ports to open
 
 * 3000 (Grafana - show graphs) HTTP
-* 8086 (Mosquitto - incoming data) MQTT
+* 1883 (Mosquitto - incoming data) MQTT
 
 
 ## Configure Grafana
@@ -52,3 +52,12 @@ Based on https://gist.github.com/mosquito/b23e1c1e5723a7fd9e6568e5cf91180f
 * systemctl daemon-reload 
 * systemctl enable docker-compose@sensor-network
 * systemctl start docker-compose@sensor-network
+
+## Add data source
+DS_SENSORS
+InfluxDB
+URL: http://influxdb:8086
+
+database
+username
+password

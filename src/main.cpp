@@ -7,7 +7,6 @@
 #include <DHT.h>
 #include "config.h"
 
-
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -20,15 +19,17 @@ struct SDATA {
   00.0001,
   00.0001,
   CLIENT_ID
-}; 
+};
 
 char pub_topic[64];
-
 long lastMsg = 0;
 char msg[128];
 int value = 0;
 char conv_string[15];
 
+// Loop settings
+int LOOP_SLEEP = 1000;
+int WORK_TIMEOUT = 10000;
 
 // Initialize DHT sensor
 // NOTE: For working with a faster than ATmega328p 16 MHz Arduino chip, like an ESP8266,
@@ -88,7 +89,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
   } else {
     digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
   }
-
 }
 
 void reconnect() {
@@ -146,14 +146,20 @@ void setup(void) {
 }
 
 void loop(void) {
+  // first, get current millis
+  // TODO: check if there is a buffer overflow with millis. it might get reset
+  // after some days
+  long now = millis();
+
   if (!client.connected()) {
     reconnect();
   }
   client.loop();
 
-
-  long now = millis();
-  if (now - lastMsg > 10000) {
+  // upload data every 10 seconds
+  if (now - lastMsg > WORK_TIMEOUT) {
+    long loopDrift = (now - lastMsg) - WORK_TIMEOUT;
+    Serial.println("Worker loop drift: " + String(loopDrift));
     lastMsg = now;
 
     gettemperature();       // read sensor
@@ -170,4 +176,10 @@ void loop(void) {
 
     client.publish(pub_topic, msg);
   }
+
+  // calculate how long our current loop took, and fix the delay, so that the
+  // drift should be minimized
+  long sleep = LOOP_SLEEP - (millis() - now);
+  Serial.println("Sleeping for " + String(sleep)+ " millis");
+  delay(sleep);
 }
