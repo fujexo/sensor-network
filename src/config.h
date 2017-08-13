@@ -2,7 +2,7 @@
   #define __CONFIG_H
 
   // Development settings
-  //#define DEBUG
+  #define DEBUG
   #define SERIAL_BAUD     115200
 
   // Sensor settings
@@ -10,10 +10,10 @@
   #define DHTPIN          2
 
   // Wifi settings
-  #define CLIENT_ID       "sensor_name"
-  #define WIFI_SSID       "yourwifissid"
-  #define WIFI_PASSWORD   "yourwifipasswd"
-  #define MQTT_SERVER     "mqttserverip"
+  #define CLIENT_ID       "oxi_room"
+  #define WIFI_SSID       "thunderbluff"
+  #define WIFI_PASSWORD   "thrallhall"
+  #define MQTT_SERVER     "176.9.120.237"
 
   // Loop settings
   #define LOOP_SLEEP      2000
