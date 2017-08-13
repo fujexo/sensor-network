@@ -10,6 +10,14 @@
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+#ifdef DEBUG
+  #define DEBUG_PRINT(x) Serial.print (x)
+  #define DEBUG_PRINTLN(x) Serial.println (x)
+#else
+  #define DEBUG_PRINT(x)
+  #define DEBUG_PRINTLN(x)
+#endif
+
 #define SENSORDATA_JSON_SIZE (JSON_OBJECT_SIZE(3))
 struct SDATA {
    float       humidity;
@@ -26,10 +34,6 @@ long lastMsg = 0;
 char msg[128];
 int value = 0;
 char conv_string[15];
-
-// Loop settings
-int LOOP_SLEEP = 1000;
-int WORK_TIMEOUT = 10000;
 
 // Initialize DHT sensor
 // NOTE: For working with a faster than ATmega328p 16 MHz Arduino chip, like an ESP8266,
@@ -64,7 +68,7 @@ void gettemperature() {
     temp_c = dht.readTemperature();         // Read temperature as Fahrenheit
     // Check if any reads failed and exit early (to try again).
     if (isnan(humidity) || isnan(temp_f) || isnan(temp_c)) {
-      Serial.println("Failed to read from DHT sensor!");
+      DEBUG_PRINTLN("Failed to read from DHT sensor!");
       return;
     }
     sensor_data.humidity    = humidity;
@@ -73,13 +77,13 @@ void gettemperature() {
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
+  DEBUG_PRINT("Message arrived [");
+  DEBUG_PRINT(topic);
+  DEBUG_PRINT("] ");
   for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+    DEBUG_PRINT((char)payload[i]);
   }
-  Serial.println();
+  DEBUG_PRINTLN();
 
   // Switch on the LED if an 1 was received as first character
   if ((char)payload[0] == '1') {
@@ -94,7 +98,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
+    DEBUG_PRINT("Attempting MQTT connection...");
 
     // Create a random client ID
     String clientId = String(CLIENT_ID) + "-";
@@ -102,15 +106,15 @@ void reconnect() {
 
     // Attempt to connect
     if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
+      DEBUG_PRINTLN("connected");
       // Once connected, publish an announcement...
       client.publish("outTopic", "hello world");
       // ... and resubscribe
       client.subscribe("inTopic");
     } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
+      DEBUG_PRINT("failed, rc=");
+      DEBUG_PRINT(client.state());
+      DEBUG_PRINTLN(" try again in 5 seconds");
       // Wait 5 seconds before retrying
       delay(5000);
     }
@@ -118,25 +122,26 @@ void reconnect() {
 }
 
 void setup(void) {
-  Serial.begin(SERIAL_BAUD); // initialize serial connection
+  #ifdef DEBUG
+    Serial.begin(SERIAL_BAUD); // initialize serial connection
+  #endif
   dht.begin();          // initialize dht sensor
 
   // Connect to WiFi network
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("\n\r \n\rWorking to connect");
+  DEBUG_PRINT("\n\r \n\rWorking to connect");
 
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
+    DEBUG_PRINT(".");
   }
 
-  Serial.println("");
-  Serial.println("DHT Weather Reading Server");
-  Serial.print("Connected to ");
-  Serial.println(WIFI_SSID);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  DEBUG_PRINTLN("\nDHT Weather Reading Server");
+  DEBUG_PRINT("Connected to ");
+  DEBUG_PRINTLN(WIFI_SSID);
+  DEBUG_PRINT("IP address: ");
+  DEBUG_PRINTLN(WiFi.localIP());
 
   snprintf( pub_topic, 64, "sysensors/%s/temperature", CLIENT_ID );
 
@@ -159,7 +164,7 @@ void loop(void) {
   // upload data every 10 seconds
   if (now - lastMsg > WORK_TIMEOUT) {
     long loopDrift = (now - lastMsg) - WORK_TIMEOUT;
-    Serial.println("Worker loop drift: " + String(loopDrift));
+    DEBUG_PRINTLN("Worker loop drift: " + String(loopDrift));
     lastMsg = now;
 
     gettemperature();       // read sensor
@@ -171,8 +176,8 @@ void loop(void) {
     root["temperature"] = sensor_data.temperature + 0.0001;
     root.printTo(msg, 128);
 
-    Serial.println("Temperature: " + String(sensor_data.temperature));
-    Serial.println("Humidity: " + String(sensor_data.humidity));
+    DEBUG_PRINTLN("Temperature: " + String(sensor_data.temperature));
+    DEBUG_PRINTLN("Humidity: " + String(sensor_data.humidity));
 
     client.publish(pub_topic, msg);
   }
@@ -180,6 +185,8 @@ void loop(void) {
   // calculate how long our current loop took, and fix the delay, so that the
   // drift should be minimized
   long sleep = LOOP_SLEEP - (millis() - now);
-  Serial.println("Sleeping for " + String(sleep)+ " millis");
-  delay(sleep);
+  DEBUG_PRINTLN("Sleeping for " + String(sleep)+ " millis");
+  if (sleep > 0) {
+    delay(sleep);
+  }
 }

@@ -1,13 +1,21 @@
 #ifndef __CONFIG_H
   #define __CONFIG_H
 
+  // Development settings
+  //#define DEBUG
   #define SERIAL_BAUD     115200
 
+  // Sensor settings
   #define DHTTYPE         DHT22
   #define DHTPIN          2
 
+  // Wifi settings
   #define CLIENT_ID       "sensor_name"
   #define WIFI_SSID       "yourwifissid"
   #define WIFI_PASSWORD   "yourwifipasswd"
   #define MQTT_SERVER     "mqttserverip"
+
+  // Loop settings
+  #define LOOP_SLEEP      2000
+  #define WORK_TIMEOUT    10000
 #endif

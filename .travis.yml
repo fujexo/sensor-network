@@ -41,4 +41,3 @@ before_script:
 
 script:
   - platformio run
-
