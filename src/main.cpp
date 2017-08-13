@@ -8,7 +8,7 @@
 #include "config.h"
 
 WiFiClient espClient;
-PubSubClient client(espClient);
+PubSubClient mqttClient(espClient);
 
 #ifdef DEBUG
   #define DEBUG_PRINT(x) Serial.print (x)
@@ -97,7 +97,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void reconnect() {
   // Loop until we're reconnected
-  while (!client.connected()) {
+  while (!mqttClient.connected()) {
     DEBUG_PRINT("Attempting MQTT connection...");
 
     // Create a random client ID
@@ -105,18 +105,18 @@ void reconnect() {
     clientId += String(random(0xffff), HEX);
 
     // Attempt to connect
-    if (client.connect(clientId.c_str())) {
+    if (mqttClient.connect(clientId.c_str())) {
       DEBUG_PRINTLN("connected");
       // Once connected, publish an announcement...
-      client.publish("outTopic", "hello world");
+      mqttClient.publish("outTopic", "hello world");
       // ... and resubscribe
-      client.subscribe("inTopic");
+      mqttClient.subscribe("inTopic");
     } else {
       DEBUG_PRINT("failed, rc=");
-      DEBUG_PRINT(client.state());
-      DEBUG_PRINTLN(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+      DEBUG_PRINT(mqttClient.state());
+      DEBUG_PRINTLN(" try again in 2 seconds");
+      // Wait 2 seconds before retrying
+      delay(2000);
     }
   }
 }
@@ -129,6 +129,7 @@ void setup(void) {
 
   // Connect to WiFi network
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.mode(WIFI_STA); //  Force the ESP into client-only mode
   DEBUG_PRINT("\n\r \n\rWorking to connect");
 
   // Wait for connection
@@ -146,8 +147,8 @@ void setup(void) {
   snprintf( pub_topic, 64, "sysensors/%s/temperature", CLIENT_ID );
 
   // Start the Pub/Sub client
-  client.setServer(MQTT_SERVER, 1883);
-  client.setCallback(callback);
+  mqttClient.setServer(MQTT_SERVER, 1883);
+  mqttClient.setCallback(callback);
 }
 
 void loop(void) {
@@ -156,13 +157,23 @@ void loop(void) {
   // after some days
   long now = millis();
 
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-
   // upload data every 10 seconds
   if (now - lastMsg > WORK_TIMEOUT) {
+    WiFi.forceSleepWake();
+    WiFi.begin();
+    DEBUG_PRINT("Reconnecting to Wifi");
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(200);
+      DEBUG_PRINT(".");
+    }
+    DEBUG_PRINTLN();
+
+    // MQTT doing its stuff
+    if (!mqttClient.connected()) {
+      reconnect();
+    }
+    mqttClient.loop();
+
     long loopDrift = (now - lastMsg) - WORK_TIMEOUT;
     DEBUG_PRINTLN("Worker loop drift: " + String(loopDrift));
     lastMsg = now;
@@ -179,7 +190,9 @@ void loop(void) {
     DEBUG_PRINTLN("Temperature: " + String(sensor_data.temperature));
     DEBUG_PRINTLN("Humidity: " + String(sensor_data.humidity));
 
-    client.publish(pub_topic, msg);
+    mqttClient.publish(pub_topic, msg);
+    WiFi.forceSleepBegin();
+    delay(100);
   }
 
   // calculate how long our current loop took, and fix the delay, so that the
