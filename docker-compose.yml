@@ -1,3 +1,4 @@
+---
 
 version: '2'
 services:
@@ -7,13 +8,15 @@ services:
     ports:
       - "${INFLUX_PORT}:${INFLUX_PORT}"
     volumes:
-      - ./influxdb/var:/var/lib/influxdb
+      - ./data/influxdb:/var/lib/influxdb
       - /etc/localtime:/etc/localtime:ro
     environment:
+      - INFLUXDB_HTTP_BIND_ADDRESS=${INFLUXDB_HTTP_BIND_ADDRESS}
       - INFLUXDB_META_DIR=${INFLUXDB_META_DIR}
       - INFLUXDB_DATA_DIR=${INFLUXDB_DATA_DIR}
       - INFLUXDB_DATA_ENGINE=${INFLUXDB_DATA_ENGINE}
       - INFLUXDB_DATA_WAL_DIR=${INFLUXDB_DATA_WAL_DIR}
+      - INFLUXDB_REPORTING_DISABLED=${INFLUXDB_REPORTING_DISABLED}
   
   # MQTT Broker in Docker
   mosquitto:
@@ -26,10 +29,13 @@ services:
   
   grafana:
     image: grafana/grafana
+    container_name: grafana
+    depends_on:
+      - "influxdb"
     ports:
       - "${GF_SERVER_PORT}:${GF_SERVER_PORT}"
     volumes:
-      - ./grafana/var:/var/lib/grafana
+      - ./data/grafana:/var/lib/grafana
       - /etc/localtime:/etc/localtime:ro
     environment:
       - GF_SERVER_PORT=${GF_SERVER_PORT}
@@ -45,10 +51,14 @@ services:
 
   mqtttransport:
     build: mqtttransport
+    container_name: mqtttransport
     command: python /mqtt-influx.py
+    depends_on:
+      - "influxdb"
+      - "mosquitto"
     environment:
       - MQTT_PORT=${MQTT_PORT}
-      - MQTT_HOST=mosquitto
+      - MQTT_HOST=${MQTT_HOST}
       - INFLUX_HOST=${INFLUX_HOST}
       - INFLUX_PORT=${INFLUX_PORT}
       - INFLUX_USER=${INFLUX_USER}

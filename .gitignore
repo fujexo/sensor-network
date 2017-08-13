@@ -1,7 +1,7 @@
 .pioenvs
 .piolibdeps
 .env
-grafana/var/grafana.db
-influxdb/var/data/
-influxdb/var/meta/
-influxdb/var/wal/
+data/*
+src\config.h
+.clang_complete
+.gcc-flags.json
