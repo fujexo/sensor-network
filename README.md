@@ -40,7 +40,7 @@ platformio run -t upload
 * cp .env.example .env
 * Edit .end to fit your needs
 
-## Ports to open if you have use a firewall
+## Ports to open if you use a firewall
 
 * 3000 (Grafana - show graphs) HTTP
 * 1883 (Mosquitto - incoming data) MQTT
