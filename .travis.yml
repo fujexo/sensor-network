@@ -37,7 +37,7 @@ install:
   - pip install -U platformio
 
 before_script:
-  - cp src/config.h.example src/config.h
+  - cp ~/src/config.h.example ~/src/config.h
 
 script:
   - platformio run
