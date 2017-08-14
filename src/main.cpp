@@ -76,7 +76,7 @@ void gettemperature() {
   }
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
   DEBUG_PRINT("Message arrived [");
   DEBUG_PRINT(topic);
   DEBUG_PRINT("] ");
@@ -95,9 +95,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
-void reconnect() {
+bool mqttReconnect() {
   // Loop until we're reconnected
+  int counter = 0;
   while (!mqttClient.connected()) {
+    counter++;
+    if (counter > 5) {
+      DEBUG_PRINTLN("Exiting MQTT reconnect loop");
+      return false;
+    }
+
     DEBUG_PRINT("Attempting MQTT connection...");
 
     // Create a random client ID
@@ -111,6 +118,7 @@ void reconnect() {
       mqttClient.publish("outTopic", "hello world");
       // ... and resubscribe
       mqttClient.subscribe("inTopic");
+      return true;
     } else {
       DEBUG_PRINT("failed, rc=");
       DEBUG_PRINT(mqttClient.state());
@@ -119,6 +127,17 @@ void reconnect() {
       delay(2000);
     }
   }
+}
+
+bool wifiReconnect() {
+  WiFi.forceSleepWake();
+  WiFi.begin();
+  DEBUG_PRINT("Reconnecting to Wifi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(200);
+    DEBUG_PRINT(".");
+  }
+  DEBUG_PRINTLN();
 }
 
 void setup(void) {
@@ -148,7 +167,7 @@ void setup(void) {
 
   // Start the Pub/Sub client
   mqttClient.setServer(MQTT_SERVER, 1883);
-  mqttClient.setCallback(callback);
+  mqttClient.setCallback(mqttCallback);
 }
 
 void loop(void) {
@@ -157,26 +176,21 @@ void loop(void) {
   // after some days
   long now = millis();
 
-  // upload data every 10 seconds
   if (now - lastMsg > WORK_TIMEOUT) {
-    WiFi.forceSleepWake();
-    WiFi.begin();
-    DEBUG_PRINT("Reconnecting to Wifi");
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(200);
-      DEBUG_PRINT(".");
-    }
-    DEBUG_PRINTLN();
-
-    // MQTT doing its stuff
-    if (!mqttClient.connected()) {
-      reconnect();
-    }
-    mqttClient.loop();
-
     long loopDrift = (now - lastMsg) - WORK_TIMEOUT;
     DEBUG_PRINTLN("Worker loop drift: " + String(loopDrift));
     lastMsg = now;
+
+    wifiReconnect();
+
+    // MQTT doing its stuff
+    if (!mqttClient.connected()) {
+      if (! mqttReconnect()) {
+        // THis should not happen, but seems to...
+        wifiReconnect();
+      }
+    }
+    mqttClient.loop();
 
     gettemperature();       // read sensor
 
