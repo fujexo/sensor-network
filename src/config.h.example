@@ -18,4 +18,5 @@
   // Loop settings
   #define LOOP_SLEEP      2000
   #define WORK_TIMEOUT    10000
+  #define UPLOAD_EVERY    10
 #endif

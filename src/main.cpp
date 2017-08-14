@@ -35,6 +35,12 @@ char msg[128];
 int value = 0;
 char conv_string[15];
 
+// Construct to save values over time
+float humidityValues[30];
+float temperatureValues[30];
+long millisValues[30];
+int valuesCounter = 0;
+
 // Initialize DHT sensor
 // NOTE: For working with a faster than ATmega328p 16 MHz Arduino chip, like an ESP8266,
 // you need to increase the threshold for cycle counts considered a 1 or 0.
@@ -168,11 +174,12 @@ void setup(void) {
   // Start the Pub/Sub client
   mqttClient.setServer(MQTT_SERVER, 1883);
   mqttClient.setCallback(mqttCallback);
+
 }
 
 void loop(void) {
   // first, get current millis
-  // TODO: check if there is a buffer overflow with millis. it might get reset
+  // TODO check if there is a buffer overflow with millis. it might get reset
   // after some days
   long now = millis();
 
@@ -181,32 +188,46 @@ void loop(void) {
     DEBUG_PRINTLN("Worker loop drift: " + String(loopDrift));
     lastMsg = now;
 
-    wifiReconnect();
-
-    // MQTT doing its stuff
-    if (!mqttClient.connected()) {
-      if (! mqttReconnect()) {
-        // THis should not happen, but seems to...
-        wifiReconnect();
-      }
-    }
-    mqttClient.loop();
-
     gettemperature();       // read sensor
-
-    StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
-    JsonObject& root    = jsonBuffer.createObject();
-    root["humidity"]    = sensor_data.humidity + 0.0001;
-    root["sensor_name"] = CLIENT_ID;
-    root["temperature"] = sensor_data.temperature + 0.0001;
-    root.printTo(msg, 128);
-
     DEBUG_PRINTLN("Temperature: " + String(sensor_data.temperature));
     DEBUG_PRINTLN("Humidity: " + String(sensor_data.humidity));
+    humidityValues[valuesCounter] = sensor_data.humidity + 0.0001;
+    temperatureValues[valuesCounter] = sensor_data.temperature + 0.0001;
+    millisValues[valuesCounter] = millis();
+    valuesCounter++;
 
-    mqttClient.publish(pub_topic, msg);
-    WiFi.forceSleepBegin();
-    delay(100);
+    // Upload the data once we reached the specified amount of values (or more)
+    if (valuesCounter >= UPLOAD_EVERY) {
+      wifiReconnect();
+      delay(100);
+
+      // MQTT doing its stuff
+      if (!mqttClient.connected()) {
+        if (! mqttReconnect()) {
+          // THis should not happen, but seems to...
+          wifiReconnect();
+        }
+      }
+      mqttClient.loop();
+
+      StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
+      JsonArray& array    = jsonBuffer.createArray();
+      for (int i=0; i=valuesCounter; i++) {
+        JsonObject& entry    = jsonBuffer.createObject();
+        entry["humidity"]    = humidityValues[i];
+        entry["sensor_name"] = CLIENT_ID;
+        entry["temperature"] = temperatureValues[i];
+        entry["millis"] = millisValues[i];
+
+        array.add(entry);
+      }
+      array.printTo(msg, 512);
+      mqttClient.publish(pub_topic, msg);
+      // TODO if the upload was successful, reset the value counter
+      valuesCounter = 0;
+
+      WiFi.forceSleepBegin();
+    }
   }
 
   // calculate how long our current loop took, and fix the delay, so that the
