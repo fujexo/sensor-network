@@ -61,23 +61,32 @@ class MqttTransport:
     def on_message(self, client, userdata, msg):
         json_data = json.loads(msg.payload)
 
-        json_body = [
-        {
-            "measurement": "sensors_all",
-            "tags": {
-                "sensor_name": json_data['sensor_name'],
-            },
-            "fields": {
-                "humidity": json_data['humidity'],
-                "temperature": json_data['temperature'],
-            }
-        }
-        ]
+        try:
+            ts = (json_data['now'] - json_data['m']) * 1000000
 
-        res = self.influx_client.write_points(json_body)
-        self.write_counter += 1
-        if self.write_counter % self.pagination == 0:
-            logging.info('Wrote %s sets of data to influxdb (res: %s)' % (self.write_counter, res))
+            json_body = [
+            {
+                "measurement": "sensors_all",
+                "tags": {
+                    "sensor_name": json_data['id'],
+                },
+                "fields": {
+                    "humidity": float(json_data['h']) / 100,
+                    "temperature": float(json_data['t']) / 100,
+                    "timestamp": "now() - %s" % ts
+                }
+            }
+            ]
+
+            res = self.influx_client.write_points(json_body)
+            self.write_counter += 1
+            if self.write_counter % self.pagination == 0:
+                logging.info('Wrote %s sets of data to influxdb (res: %s)' % (self.write_counter, res))
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            emsg = ''.join('' + line for line in lines)
+            logging.warning('Caught exception on JSON data reading: \n%s' % (emsg))
 
     def run(self):
         self.setup_mqtt_client()
