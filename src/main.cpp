@@ -31,6 +31,7 @@ int valuesCounter = 0;
 int16_t humidityValues[NUM_CACHE];
 int16_t temperatureValues[NUM_CACHE];
 unsigned long millisValues[NUM_CACHE];
+
 #define SENSORDATA_JSON_SIZE (JSON_ARRAY_SIZE(3) + JSON_OBJECT_SIZE(2) + NUM_CACHE*JSON_OBJECT_SIZE(3))
 
 // Initialize DHT sensor
@@ -44,24 +45,23 @@ unsigned long millisValues[NUM_CACHE];
 DHT dht(DHTPIN, DHTTYPE, 11); // 11 works fine for ESP8266
 
 void readSensorData() {
-  //temp_f = dht.readTemperature(true) * 1000;     // Read temperature as Fahrenheit
-  float tmpTemperature = dht.readTemperature();
-  DEBUG_PRINTLN("Temperature: " + String(tmpTemperature));
-  temperatureValues[valuesCounter] = int(tmpTemperature * 100);         // Read temperature as Celcius
-
   // Reading temperature for humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
+
+  float tmpTemperature = dht.readTemperature();
   float tmpHumidity = dht.readHumidity();
-  DEBUG_PRINTLN("Humidity: " + String(tmpHumidity));
-  humidityValues[valuesCounter] = int(tmpHumidity * 100);          // Read humidity (percent)
-
-  millisValues[valuesCounter] = millis();
-
   // Check if any reads failed and exit early (to try again).
-  if (isnan(humidityValues[valuesCounter]) || isnan(temperatureValues[valuesCounter])) {
+  if (isnan(tmpHumidity) || isnan(tmpHumidity)) {
     DEBUG_PRINTLN("Failed to read from DHT sensor!");
-    return;
+    temperatureValues[valuesCounter] = NULL;         // Read temperature as Celcius
+    humidityValues[valuesCounter] = NULL;          // Read humidity (percent)
+  } else {
+    DEBUG_PRINTLN("Temperature: " + String(float(tmpTemperature)));
+    DEBUG_PRINTLN("Humidity: " + String(float(tmpHumidity)));
+    temperatureValues[valuesCounter] = int(tmpTemperature * 100);         // Read temperature as Celcius
+    humidityValues[valuesCounter] = int(tmpHumidity * 100);          // Read humidity (percent)
   }
+  millisValues[valuesCounter] = millis();
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -155,6 +155,12 @@ void setup(void) {
   mqttClient.setServer(MQTT_SERVER, 1883);
   mqttClient.setCallback(mqttCallback);
 
+  // initializing arrays
+  for (int i = 0; i < NUM_CACHE; i++) {
+    humidityValues[i] = NULL;
+    temperatureValues[i] = NULL;
+    millisValues[i] = 0;
+  }
 }
 
 void loop(void) {
@@ -171,7 +177,9 @@ void loop(void) {
 
     readSensorData();       // read sensor
     DEBUG_PRINTLN("Number of measurements in cache: " + String(valuesCounter + 1));
-    valuesCounter++;
+
+    // Cache overflow protection
+    valuesCounter++; // increase for next loop
     if (valuesCounter >= NUM_CACHE) valuesCounter = 0;
 
     // e the data once we reached the specified amount of values (or more)
@@ -205,10 +213,9 @@ void loop(void) {
         mqttClient.loop();
 
         DEBUG_PRINT("Sending the JSON data ");
-        for (int i = 0; i <= valuesCounter; i++) {
-          if (humidityValues[i] != 0 && humidityValues[i] != 0) {
-
-            DEBUG_PRINT(".");
+        for (int i = 0; i <= NUM_CACHE; i++) {
+          if (temperatureValues[i] && humidityValues[i] && humidityValues[i] != 0) {
+             DEBUG_PRINT(".");
             StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
             JsonObject& root    = jsonBuffer.createObject();
             root["id"] = CLIENT_ID;
@@ -217,7 +224,12 @@ void loop(void) {
             root["m"] = millisValues[i];
             root["now"] = millis();
             root.printTo(msg, 128);
-            mqttClient.publish(pub_topic, msg);
+            if (mqttClient.publish(pub_topic, msg)) {
+              // Publishing values successful, removing them from cache
+              humidityValues[i] = NULL;
+              temperatureValues[i] = NULL;
+              millisValues[i] = 0;
+            }
 
             // #ifdef DEBUG
             // DEBUG_PRINTLN("JSON data generated looks like: ");
@@ -227,7 +239,6 @@ void loop(void) {
           }
         }
         DEBUG_PRINTLN(" done");
-        valuesCounter = 0;
       }
 
       // Put the Wifi to sleep again

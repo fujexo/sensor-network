@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import traceback
+import time
 from influxdb import InfluxDBClient
 import paho.mqtt.client as mqtt
 
@@ -62,7 +63,12 @@ class MqttTransport:
         json_data = json.loads(msg.payload)
 
         try:
-            ts = (json_data['now'] - json_data['m']) * 1000000
+            if 'now' not in json_data.keys():
+                logging.warning("Old API version on sensor %s" % json_data['sensor_name'])
+                return False
+
+            now = int(time.time() * 1000000000)
+            ts = now - int((int(json_data['now']) - int(json_data['m'])) * 1000000)
 
             json_body = [
             {
@@ -72,11 +78,13 @@ class MqttTransport:
                 },
                 "fields": {
                     "humidity": float(json_data['h']) / 100,
-                    "temperature": float(json_data['t']) / 100,
-                    "timestamp": "now() - %s" % ts
-                }
+                    "temperature": float(json_data['t']) / 100
+                },
+                "time": ts,
+                "time_precision": "u"
             }
             ]
+
 
             res = self.influx_client.write_points(json_body)
             self.write_counter += 1
