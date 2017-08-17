@@ -8,7 +8,7 @@
 #include "config.h"
 
 WiFiClient espClient;
-PubSubClient client(espClient);
+PubSubClient mqttClient(espClient);
 
 #ifdef DEBUG
   #define DEBUG_PRINT(x) Serial.print (x)
@@ -18,22 +18,20 @@ PubSubClient client(espClient);
   #define DEBUG_PRINTLN(x)
 #endif
 
-#define SENSORDATA_JSON_SIZE (JSON_OBJECT_SIZE(3))
-struct SDATA {
-   float       humidity;
-   float       temperature;
-   const char* sensor_name;
-} sensor_data = {
-  00.0001,
-  00.0001,
-  CLIENT_ID
-};
-
 char pub_topic[64];
 long lastMsg = 0;
-char msg[128];
+char msg[10000];
 int value = 0;
 char conv_string[15];
+
+// Logic switches
+bool readyToUpload = false;
+int valuesCounter = 0;
+// Construct to save values over time
+int16_t humidityValues[NUM_CACHE];
+int16_t temperatureValues[NUM_CACHE];
+unsigned long millisValues[NUM_CACHE];
+#define SENSORDATA_JSON_SIZE (JSON_ARRAY_SIZE(3) + JSON_OBJECT_SIZE(2) + NUM_CACHE*JSON_OBJECT_SIZE(3))
 
 // Initialize DHT sensor
 // NOTE: For working with a faster than ATmega328p 16 MHz Arduino chip, like an ESP8266,
@@ -45,38 +43,28 @@ char conv_string[15];
 // This is for the ESP8266 processor on ESP-01
 DHT dht(DHTPIN, DHTTYPE, 11); // 11 works fine for ESP8266
 
-float humidity, temp_f, temp_c;  // Values read from sensor
-// Generally, you should use "unsigned long" for variables that hold time
-unsigned long previousMillis = 0;        // will store last temp was read
-const long interval = 2000;              // interval at which to read sensor
+void readSensorData() {
+  //temp_f = dht.readTemperature(true) * 1000;     // Read temperature as Fahrenheit
+  float tmpTemperature = dht.readTemperature();
+  DEBUG_PRINTLN("Temperature: " + String(tmpTemperature));
+  temperatureValues[valuesCounter] = int(tmpTemperature * 100);         // Read temperature as Celcius
 
-void gettemperature() {
-  // Wait at least 2 seconds seconds between measurements.
-  // if the difference between the current time and last time you read
-  // the sensor is bigger than the interval you set, read the sensor
-  // Works better than delay for things happening elsewhere also
-  unsigned long currentMillis = millis();
+  // Reading temperature for humidity takes about 250 milliseconds!
+  // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
+  float tmpHumidity = dht.readHumidity();
+  DEBUG_PRINTLN("Humidity: " + String(tmpHumidity));
+  humidityValues[valuesCounter] = int(tmpHumidity * 100);          // Read humidity (percent)
 
-  if(currentMillis - previousMillis >= interval) {
-    // save the last time you read the sensor
-    previousMillis = currentMillis;
+  millisValues[valuesCounter] = millis();
 
-    // Reading temperature for humidity takes about 250 milliseconds!
-    // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
-    humidity = dht.readHumidity();          // Read humidity (percent)
-    temp_f = dht.readTemperature(true);     // Read temperature as Fahrenheit
-    temp_c = dht.readTemperature();         // Read temperature as Fahrenheit
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(humidity) || isnan(temp_f) || isnan(temp_c)) {
-      DEBUG_PRINTLN("Failed to read from DHT sensor!");
-      return;
-    }
-    sensor_data.humidity    = humidity;
-    sensor_data.temperature = temp_c;
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(humidityValues[valuesCounter]) || isnan(temperatureValues[valuesCounter])) {
+    DEBUG_PRINTLN("Failed to read from DHT sensor!");
+    return;
   }
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
   DEBUG_PRINT("Message arrived [");
   DEBUG_PRINT(topic);
   DEBUG_PRINT("] ");
@@ -95,9 +83,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
-void reconnect() {
+bool mqttReconnect() {
   // Loop until we're reconnected
-  while (!client.connected()) {
+  int counter = 0;
+  while (!mqttClient.connected()) {
+    counter++;
+    if (counter > 5) {
+      DEBUG_PRINTLN("Exiting MQTT reconnect loop");
+      return false;
+    }
+
     DEBUG_PRINT("Attempting MQTT connection...");
 
     // Create a random client ID
@@ -105,20 +100,41 @@ void reconnect() {
     clientId += String(random(0xffff), HEX);
 
     // Attempt to connect
-    if (client.connect(clientId.c_str())) {
+    if (mqttClient.connect(clientId.c_str())) {
       DEBUG_PRINTLN("connected");
       // Once connected, publish an announcement...
-      client.publish("outTopic", "hello world");
+      mqttClient.publish("outTopic", "hello world");
       // ... and resubscribe
-      client.subscribe("inTopic");
+      mqttClient.subscribe("inTopic");
+      return true;
     } else {
       DEBUG_PRINT("failed, rc=");
-      DEBUG_PRINT(client.state());
-      DEBUG_PRINTLN(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+      DEBUG_PRINT(mqttClient.state());
+      DEBUG_PRINTLN(" try again in 2 seconds");
+      // Wait 2 seconds before retrying
+      delay(2000);
     }
   }
+}
+
+bool wifiConnect() {
+  int retryCounter = CONNECT_TIMEOUT * 10;
+  WiFi.forceSleepWake();
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.mode(WIFI_STA); //  Force the ESP into client-only mode
+  delay(100);
+  DEBUG_PRINT("Reconnecting to Wifi ");
+  while (WiFi.status() != WL_CONNECTED) {
+    retryCounter--;
+    if (retryCounter <= 0) {
+      DEBUG_PRINTLN(" timeout reached!");
+      return false;
+    }
+    delay(100);
+    DEBUG_PRINT(".");
+  }
+  DEBUG_PRINTLN(" done");
+  return true;
 }
 
 void setup(void) {
@@ -126,16 +142,6 @@ void setup(void) {
     Serial.begin(SERIAL_BAUD); // initialize serial connection
   #endif
   dht.begin();          // initialize dht sensor
-
-  // Connect to WiFi network
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  DEBUG_PRINT("\n\r \n\rWorking to connect");
-
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    DEBUG_PRINT(".");
-  }
 
   DEBUG_PRINTLN("\nDHT Weather Reading Server");
   DEBUG_PRINT("Connected to ");
@@ -146,47 +152,95 @@ void setup(void) {
   snprintf( pub_topic, 64, "sysensors/%s/temperature", CLIENT_ID );
 
   // Start the Pub/Sub client
-  client.setServer(MQTT_SERVER, 1883);
-  client.setCallback(callback);
+  mqttClient.setServer(MQTT_SERVER, 1883);
+  mqttClient.setCallback(mqttCallback);
+
 }
 
 void loop(void) {
   // first, get current millis
-  // TODO: check if there is a buffer overflow with millis. it might get reset
+  // TODO check if there is a buffer overflow with millis. it might get reset
   // after some days
   long now = millis();
 
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-
-  // upload data every 10 seconds
   if (now - lastMsg > WORK_TIMEOUT) {
     long loopDrift = (now - lastMsg) - WORK_TIMEOUT;
+    DEBUG_PRINTLN("----------------------------------------------------------");
     DEBUG_PRINTLN("Worker loop drift: " + String(loopDrift));
     lastMsg = now;
 
-    gettemperature();       // read sensor
+    readSensorData();       // read sensor
+    DEBUG_PRINTLN("Number of measurements in cache: " + String(valuesCounter + 1));
+    valuesCounter++;
+    if (valuesCounter >= NUM_CACHE) valuesCounter = 0;
 
-    StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
-    JsonObject& root    = jsonBuffer.createObject();
-    root["humidity"]    = sensor_data.humidity + 0.0001;
-    root["sensor_name"] = CLIENT_ID;
-    root["temperature"] = sensor_data.temperature + 0.0001;
-    root.printTo(msg, 128);
+    // e the data once we reached the specified amount of values (or more)
+    if (valuesCounter % UPLOAD_EVERY == 0) {
+      DEBUG_PRINTLN(">>> It is upload time!");
+      readyToUpload = false;
 
-    DEBUG_PRINTLN("Temperature: " + String(sensor_data.temperature));
-    DEBUG_PRINTLN("Humidity: " + String(sensor_data.humidity));
+      // Check if the wifi is connected
+      if (WiFi.status() != WL_CONNECTED) {
+        DEBUG_PRINTLN("Calling wifiConnect() as it seems to be required");
+        wifiConnect();
+      }
 
-    client.publish(pub_topic, msg);
-  }
+      // MQTT doing its stuff if the wifi is connected
+      if (WiFi.status() == WL_CONNECTED) {
+        DEBUG_PRINT("Is the MQTT Client already connected? ");
+        if (!mqttClient.connected()) {
+          DEBUG_PRINTLN(" No, let's try to reconnect");
+          if (! mqttReconnect()) {
+            // This should not happen, but seems to...
+            DEBUG_PRINTLN("MQTT was unable to connect! Exiting the upload loop");
+          } else {
+            readyToUpload = true;
+          }
+        }
+      }
 
-  // calculate how long our current loop took, and fix the delay, so that the
-  // drift should be minimized
-  long sleep = LOOP_SLEEP - (millis() - now);
-  DEBUG_PRINTLN("Sleeping for " + String(sleep)+ " millis");
-  if (sleep > 0) {
-    delay(sleep);
+      // if readyToUpload, letste go!
+      if (readyToUpload) {
+        DEBUG_PRINTLN("MQTT Loop");
+        mqttClient.loop();
+
+        DEBUG_PRINT("Sending the JSON data ");
+        for (int i = 0; i <= valuesCounter; i++) {
+          if (humidityValues[i] != 0 && humidityValues[i] != 0) {
+
+            DEBUG_PRINT(".");
+            StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
+            JsonObject& root    = jsonBuffer.createObject();
+            root["id"] = CLIENT_ID;
+            root["h"] = humidityValues[i];
+            root["t"] = temperatureValues[i];
+            root["m"] = millisValues[i];
+            root["now"] = millis();
+            root.printTo(msg, 128);
+            mqttClient.publish(pub_topic, msg);
+
+            // #ifdef DEBUG
+            // DEBUG_PRINTLN("JSON data generated looks like: ");
+            // root.printTo(Serial);
+            // DEBUG_PRINTLN();
+            // #endif
+          }
+        }
+        DEBUG_PRINTLN(" done");
+        valuesCounter = 0;
+      }
+
+      // Put the Wifi to sleep again
+      WiFi.forceSleepBegin();
+      delay(100);
+    }
+
+    // calculate how long our current loop took, and fix the delay, so that the
+    // drift should be minimized
+    long sleep = LOOP_SLEEP - (millis() - now);
+    DEBUG_PRINTLN("Sleeping for " + String(sleep)+ " millis");
+    if (sleep > 0) {
+      delay(sleep);
+    }
   }
 }
