@@ -85,7 +85,7 @@ class MqttTransport:
             now = int(time.time() * 1000000000)
             ts = now - int((int(json_data['now']) - int(json_data['m'])) * 1000000)
 
-            if json_data['id'] is in self.sensor_names.keys():
+            if json_data['id'] in self.sensor_names.keys():
                 sensor_name = self.sensor_names[json_data['id']]
             else:
                 sensor_name = json_data['id']
