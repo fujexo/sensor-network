@@ -161,6 +161,9 @@ void setup(void) {
     temperatureValues[i] = NULL;
     millisValues[i] = 0;
   }
+
+  // Put the Wifi to sleep again
+  WiFi.forceSleepBegin();
 }
 
 void loop(void) {
