@@ -73,7 +73,7 @@ class MqttTransport:
                 self.sensor_names = json.load(data_file)
 
     def on_message(self, client, userdata, msg):
-        load_sensor_names()
+        self.load_sensor_names()
 
         json_data = json.loads(msg.payload)
 
