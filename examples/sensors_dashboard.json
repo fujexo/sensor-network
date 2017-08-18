@@ -1,8 +1,8 @@
 {
   "__inputs": [
     {
-      "name": "DS_TEWST",
-      "label": "tewst",
+      "name": "DS_DS_SENSORS",
+      "label": "DS_SENSORS",
       "description": "",
       "type": "datasource",
       "pluginId": "influxdb",
@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "4.4.1"
+      "version": "4.4.3"
     },
     {
       "type": "panel",
@@ -59,7 +59,7 @@
             "rgba(237, 129, 40, 0.89)",
             "rgba(50, 172, 45, 0.97)"
           ],
-          "datasource": "${DS_TEWST}",
+          "datasource": "${DS_DS_SENSORS}",
           "decimals": 1,
           "format": "celsius",
           "gauge": {
@@ -170,7 +170,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_TEWST}",
+          "datasource": "${DS_DS_SENSORS}",
           "decimals": 2,
           "fill": 1,
           "id": 2,
@@ -287,7 +287,7 @@
             "rgba(237, 129, 40, 0.89)",
             "rgba(50, 172, 45, 0.97)"
           ],
-          "datasource": "${DS_TEWST}",
+          "datasource": "${DS_DS_SENSORS}",
           "decimals": 0,
           "format": "humidity",
           "gauge": {
@@ -397,7 +397,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_TEWST}",
+          "datasource": "${DS_DS_SENSORS}",
           "decimals": 1,
           "fill": 1,
           "id": 4,
@@ -521,37 +521,23 @@
     "list": [
       {
         "allValue": null,
-        "current": {
-          "tags": [],
-          "text": "All",
-          "value": [
-            "$__all"
-          ]
-        },
+        "current": {},
+        "datasource": "${DS_DS_SENSORS}",
         "hide": 0,
         "includeAll": true,
         "label": "Room",
         "multi": true,
         "name": "room",
-        "options": [
-          {
-            "selected": true,
-            "text": "All",
-            "value": "$__all"
-          },
-          {
-            "selected": false,
-            "text": "sensor_1",
-            "value": "sensor_1"
-          },
-          {
-            "selected": false,
-            "text": "sensor_2",
-            "value": "sensor_2"
-          }
-        ],
-        "query": "sensor_1, sensor_2",
-        "type": "custom"
+        "options": [],
+        "query": "SHOW TAG VALUES WITH KEY = sensor_name",
+        "refresh": 1,
+        "regex": "",
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
       }
     ]
   },
@@ -586,5 +572,5 @@
   },
   "timezone": "",
   "title": "Overview",
-  "version": 5
+  "version": 3
 }

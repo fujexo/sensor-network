@@ -17,8 +17,7 @@
   #define CONNECT_TIMEOUT 5
 
   // Loop settings
-  #define LOOP_SLEEP      10000
-  #define WORK_TIMEOUT    10000
-  #define UPLOAD_EVERY    10
-  #define NUM_CACHE       150
+  #define LOOP_SLEEP      30000
+  #define UPLOAD_EVERY    20
+  #define NUM_CACHE       220
 #endif

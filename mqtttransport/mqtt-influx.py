@@ -66,7 +66,7 @@ class MqttTransport:
 
     def load_sensor_names(self):
         now = time.time()
-        if self.last_file_load + self.sensor_name_reload_timeout > now:
+        if self.last_file_load + self.sensor_name_reload_timeout < now:
             self.last_file_load = now
             logging.warning("Reloading sensor names from file")
             with open('sensor_names.json') as data_file:

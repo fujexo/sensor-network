@@ -169,14 +169,14 @@ void loop(void) {
   // after some days
   long now = millis();
 
-  if (now - lastMsg > WORK_TIMEOUT) {
-    long loopDrift = (now - lastMsg) - WORK_TIMEOUT;
+  if (now - lastMsg > LOOP_SLEEP) {
+    long loopDrift = (now - lastMsg) - LOOP_SLEEP;
     DEBUG_PRINTLN("----------------------------------------------------------");
     DEBUG_PRINTLN("Worker loop drift: " + String(loopDrift));
     lastMsg = now;
 
     readSensorData();       // read sensor
-    DEBUG_PRINTLN("Number of measurements in cache: " + String(valuesCounter + 1));
+    DEBUG_PRINTLN("Loop index: " + String(valuesCounter + 1));
 
     // Cache overflow protection
     valuesCounter++; // increase for next loop
