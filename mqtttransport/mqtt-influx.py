@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import traceback
+import time
 from influxdb import InfluxDBClient
 import paho.mqtt.client as mqtt
 
@@ -19,6 +20,11 @@ class MqttTransport:
 
         # Stat counter
         self.write_counter = 0
+
+        # Sensor name cache control
+        self.sensor_name_reload_timeout = 60
+        self.last_file_load = 0
+        self.sensor_names = {}
 
         # Get settings from environment
         self.if_host = os.environ.get('INFLUX_HOST', "influxdb")
@@ -58,25 +64,48 @@ class MqttTransport:
                                             database=self.if_daba)
         self.influx_client.create_database(self.if_daba)
 
+    def load_sensor_names(self):
+        now = time.time()
+        if self.last_file_load + self.sensor_name_reload_timeout < now:
+            self.last_file_load = now
+            logging.warning("Reloading sensor names from file")
+            with open('sensor_names.json') as data_file:
+                self.sensor_names = json.load(data_file)
+
     def on_message(self, client, userdata, msg):
+        self.load_sensor_names()
+
         json_data = json.loads(msg.payload)
 
         try:
-            ts = (json_data['now'] - json_data['m']) * 1000000
+            if 'now' not in json_data.keys():
+                logging.warning("Old API version on sensor %s" % json_data['sensor_name'])
+                return False
+
+            now = int(time.time() * 1000000000)
+            ts = now - int((int(json_data['now']) - int(json_data['m'])) * 1000000)
+
+            if json_data['id'] in self.sensor_names.keys():
+                sensor_name = self.sensor_names[json_data['id']]
+            else:
+                sensor_name = json_data['id']
 
             json_body = [
             {
                 "measurement": "sensors_all",
                 "tags": {
-                    "sensor_name": json_data['id'],
+                    "sensor_id": json_data['id'],
+                    "sensor_name": sensor_name,
                 },
                 "fields": {
                     "humidity": float(json_data['h']) / 100,
-                    "temperature": float(json_data['t']) / 100,
-                    "timestamp": "now() - %s" % ts
-                }
+                    "temperature": float(json_data['t']) / 100
+                },
+                "time": ts,
+                "time_precision": "u"
             }
             ]
+
 
             res = self.influx_client.write_points(json_body)
             self.write_counter += 1

@@ -17,7 +17,7 @@ services:
       - INFLUXDB_DATA_ENGINE=${INFLUXDB_DATA_ENGINE}
       - INFLUXDB_DATA_WAL_DIR=${INFLUXDB_DATA_WAL_DIR}
       - INFLUXDB_REPORTING_DISABLED=${INFLUXDB_REPORTING_DISABLED}
-  
+
   # MQTT Broker in Docker
   mosquitto:
     image: eclipse-mosquitto
@@ -26,7 +26,7 @@ services:
       - "${MQTT_PORT}:${MQTT_PORT}"
     volumes:
       - /etc/localtime:/etc/localtime:ro
-  
+
   grafana:
     image: grafana/grafana
     container_name: grafana
@@ -56,6 +56,8 @@ services:
     depends_on:
       - "influxdb"
       - "mosquitto"
+    volumes:
+      - ./sensor_names.json:/sensor_names.json
     environment:
       - MQTT_PORT=${MQTT_PORT}
       - MQTT_HOST=${MQTT_HOST}
@@ -64,4 +66,3 @@ services:
       - INFLUX_USER=${INFLUX_USER}
       - INFLUX_PASS=${INFLUX_PASS}
       - INFLUX_DABA=${INFLUX_DABA}
-
