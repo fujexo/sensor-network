@@ -8,6 +8,8 @@
   // Sensor settings
   #define DHTTYPE         DHT22
   #define DHTPIN          2
+  #define HUMID_CORR      0
+  #define TEMP_CORR       0
 
   // Wifi settings
   #define CLIENT_ID       "sensor_name"

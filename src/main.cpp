@@ -56,10 +56,10 @@ void readSensorData() {
     temperatureValues[valuesCounter] = NULL;         // Read temperature as Celcius
     humidityValues[valuesCounter] = NULL;          // Read humidity (percent)
   } else {
-    DEBUG_PRINTLN("Temperature: " + String(float(tmpTemperature)));
-    DEBUG_PRINTLN("Humidity: " + String(float(tmpHumidity)));
-    temperatureValues[valuesCounter] = int(tmpTemperature * 100);         // Read temperature as Celcius
-    humidityValues[valuesCounter] = int(tmpHumidity * 100);          // Read humidity (percent)
+    DEBUG_PRINTLN("Temperature: " + String(float(tmpTemperature) + TEMP_CORR));
+    DEBUG_PRINTLN("Humidity: " + String(float(tmpHumidity) + HUMID_CORR));
+    temperatureValues[valuesCounter] = int((tmpTemperature + TEMP_CORR) * 100);         // Read temperature as Celcius
+    humidityValues[valuesCounter] = int((tmpHumidity + HUMID_CORR) * 100);          // Read humidity (percent)
   }
   millisValues[valuesCounter] = millis();
 }
