@@ -13,6 +13,7 @@
 
   // Wifi settings
   #define CLIENT_ID       "sensor_name"
+  #define MQTT_TOPIC_BASE "mqtt_topic"
   #define WIFI_SSID       "yourwifissid"
   #define WIFI_PASSWORD   "yourwifipasswd"
   #define MQTT_SERVER     "mqttserverip"

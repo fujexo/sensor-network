@@ -148,8 +148,10 @@ void setup(void) {
   DEBUG_PRINTLN(WIFI_SSID);
   DEBUG_PRINT("IP address: ");
   DEBUG_PRINTLN(WiFi.localIP());
+  DEBUG_PRINT("MAC address: ");
+  DEBUG_PRINTLN(WiFi.macAddress());
 
-  snprintf( pub_topic, 64, "sysensors/%s/temperature", CLIENT_ID );
+  snprintf( pub_topic, 64, MQTT_TOPIC_BASE, "/%s/temperature", CLIENT_ID );
 
   // Start the Pub/Sub client
   mqttClient.setServer(MQTT_SERVER, 1883);
@@ -222,6 +224,7 @@ void loop(void) {
             StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
             JsonObject& root    = jsonBuffer.createObject();
             root["id"] = CLIENT_ID;
+            root["mac_address"] = WiFi.macAddress();
             root["h"] = humidityValues[i];
             root["t"] = temperatureValues[i];
             root["m"] = millisValues[i];
