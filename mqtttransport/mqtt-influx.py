@@ -96,6 +96,7 @@ class MqttTransport:
                 "tags": {
                     "sensor_id": json_data['id'],
                     "sensor_name": sensor_name,
+                    "mac_address": json_data['mac_address'],
                 },
                 "fields": {
                     "humidity": float(json_data['h']) / 100,
