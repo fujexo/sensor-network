@@ -50,7 +50,7 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=${GF_AUTH_ANONYMOUS_ORG_ROLE}
 
   mqtttransport:
-    build: mqtttransport
+    image: fujexo/mqtttransport
     container_name: mqtttransport
     command: python /mqtt-influx.py
     depends_on:
