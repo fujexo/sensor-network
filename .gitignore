@@ -6,3 +6,6 @@ src/config.h
 .clang_complete
 .gcc-flags.json
 sensor_names.json
+.ipynb_checkpoints
+__pycache__
+venv

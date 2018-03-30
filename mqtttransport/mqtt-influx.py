@@ -1,138 +1,184 @@
 #!/usr/bin/env python3
 
+import yaml
 import json
-import logging
-import os
-import sys
-import traceback
 import time
-from influxdb import InfluxDBClient
+import logging
 import paho.mqtt.client as mqtt
+import influxdb.client as influx
 
 # Logging settings
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
-class MqttTransport:
+class mqtttransport:
 
-    def __init__(self):
-        # Config things
-        self.pagination = 1000
+    def __init__(self, config_file):
 
-        # Stat counter
-        self.write_counter = 0
+        self.config_file = config_file
 
-        # Sensor name cache control
-        self.sensor_name_reload_timeout = 60
-        self.last_file_load = 0
-        self.sensor_names = {}
+        self.sensors = None
+        self.mqtt_topic = None
+        self.configuration = None
 
-        # Get settings from environment
-        self.if_host = os.environ.get('INFLUX_HOST', "influxdb")
-        self.if_port = int(os.environ.get('INFLUX_PORT', 8086))
-        self.if_user = os.environ.get('INFLUX_USER')
-        self.if_daba = os.environ.get('INFLUX_DABA')
-        self.if_pass = os.environ.get('INFLUX_PASS')
-        self.mq_host = os.environ.get('MQTT_HOST', "mosquitto")
-        self.mq_port = int(os.environ.get('MQTT_PORT', 1883))
-
-        # Transport clients
-        self.influx_client = None
+        # Initialize client variables
         self.mqtt_client = None
+        self.influx_client = None
 
-    def on_connect(self, client, userdata, flags, rc):
-        client.subscribe("sysensors/+/temperature")
 
-    def setup_mqtt_client(self):
+    def read_config(self):
+        """ Read the configuration file and save it into variables
+
+        :return: None
+        :rtype: bool
+        """
+
+        try:
+            with open(self.config_file, 'r') as f:
+                # Load yaml from file
+                t = yaml.load(f)
+
+                # Write to respective variables
+                self.sensors = t['sensor_network']['sensors']
+                self.configuration = t['sensor_network']['config']
+
+                # Return True if everything is good, false if not
+                if not self.sensors is None and not self.configuration is None:
+                    return True
+                else:
+                    return False
+        except Exception as e:
+            print('Unknown error', e)
+
+    def _setup_mqtt(self):
+        """Initialze the mqtt client
+
+        :return: None
+        :rtype: None
+        """
+
+        # get config and set to default values if neccessary
+        mqtt_host = self.configuration.get('mqtt_host', '127.0.0.1')
+        mqtt_port = self.configuration.get('mqtt_port', 1883)
+
+        # Initialize the MQTT library if not done yet
         if not self.mqtt_client:
             self.mqtt_client = mqtt.Client()
             self.mqtt_client.on_connect = self.on_connect
             self.mqtt_client.on_message = self.on_message
 
-            logging.info('Connecting to MQTT on %s:%s' % (self.mq_host,
-                                                          self.mq_port))
-            self.mqtt_client.connect(self.mq_host, self.mq_port, 60)
+            # Log that we are going to connect now
+            logging.info('Connectiong to MQTT Broker on %s:%s' % (mqtt_host,
+                mqtt_port))
+            self.mqtt_client.connect(mqtt_host, mqtt_port)
 
-    def setup_influx_client(self):
-        logging.info('Connecting to influx on %s:%s as %s to db %s' % (self.if_host,
-                                                                       self.if_port,
-                                                                       self.if_user,
-                                                                       self.if_daba))
-        self.influx_client = InfluxDBClient(host=self.if_host,
-                                            port=self.if_port,
-                                            username=self.if_user,
-                                            password=self.if_pass,
-                                            database=self.if_daba)
-        self.influx_client.create_database(self.if_daba)
+    def _setup_influx(self):
+        """Initialize the influx client
 
-    def load_sensor_names(self):
-        now = time.time()
-        if self.last_file_load + self.sensor_name_reload_timeout < now:
-            self.last_file_load = now
-            logging.warning("Reloading sensor names from file")
-            with open('sensor_names.json') as data_file:
-                self.sensor_names = json.load(data_file)
+        :return: None
+        :rtype: None
+        """
+
+        influx_host     = self.configuration.get('influx_host', '127.0.0.1')
+        influx_port     = self.configuration.get('influx_port', '8086')
+        influx_user     = self.configuration.get('influx_user', '')
+        influx_pass     = self.configuration.get('influx_pass', '')
+        influx_database = self.configuration.get('influx_database', 'default')
+
+        logging.info('Connecting to InfluxDB on %s:%s' % (influx_host,
+            influx_port))
+        self.influx_client = influx.InfluxDBClient(host=influx_host,
+                port=influx_port, username=influx_user,
+                password=influx_pass, database=influx_database)
+
+        # Create the default database
+        self.influx_client.create_database(influx_database)
+
+        # Create all configured database over all sensors
+        for idx, sensor in enumerate(self.sensors):
+            database = self.sensors[idx].get('database', None)
+            if database is not None:
+                self.influx_client.create_database(database)
+
+    def on_connect(self, client, userdata, flags, rc):
+        """When the connection to the mqtt broker starts, subscribe to topic
+
+        :return: None
+        :rtype: None
+        """
+        client.subscribe(self.configuration.get('mqtt_topic', 'default'))
 
     def on_message(self, client, userdata, msg):
-        self.load_sensor_names()
+        """Exectued on message
 
-        json_data = json.loads(msg.payload)
+        :return: None
+        :rtype: None
+        """
+
+        logging.debug('Got message')
+
+        msg_payload = json.loads(msg.payload)
+        sensor_id = None
+
+        sensor_found = False
+        sensor_id = None
+        for idx, sensor in enumerate(self.sensors):
+            if self.sensors[idx].get('address') == msg_payload['mac_address']:
+                sensor_found = True
+                sensor_name = self.sensors[idx].get('name')
+                sensor_t_corr = self.sensors[idx].get('temp_correction')
+                sensor_h_corr = self.sensors[idx].get('humi_correction')
+                sensor_database = self.sensors[idx].get('database')
+
+        if not sensor_found:
+            sensor_name = msg_payload['mac_address']
+            sensor_t_corr = 0
+            sensor_h_corr = 0
+            sensor_database = self.configuration['influx_database']
 
         try:
-            if 'now' not in json_data.keys():
-                logging.warning("Old API version on sensor %s" % json_data['sensor_name'])
-                return False
-
+            # Get the actual timestamp of the message
             now = int(time.time() * 1000000000)
-            ts = now - int((int(json_data['now']) - int(json_data['m'])) * 1000000)
+            ts = now - int((int(msg_payload['now']) - int(msg_payload['m'])) * 1000000)
 
-            if json_data['id'] in self.sensor_names.keys():
-                sensor_name = self.sensor_names[json_data['id']]
-            else:
-                sensor_name = json_data['id']
-
+            # Prepare the json object for influxdb
             json_body = [
             {
-                "measurement": "sensors_all",
+                "measurement": "sensor_network",
                 "tags": {
-                    "sensor_id": json_data['id'],
                     "sensor_name": sensor_name,
-                    "mac_address": json_data['mac_address'],
+                    "address": msg_payload['mac_address'],
+                    "sensor_db": sensor_database
                 },
                 "fields": {
-                    "humidity": float(json_data['h']) / 100,
-                    "temperature": float(json_data['t']) / 100
+                    "humidity": float((msg_payload['h']) / 100) + sensor_h_corr,
+                    "temperature": float((msg_payload['t']) / 100) + sensor_t_corr
                 },
                 "time": ts,
                 "time_precision": "u"
             }
             ]
 
-
+            # Switch database and send the data
+            self.influx_client.switch_database(sensor_database)
             res = self.influx_client.write_points(json_body)
-            self.write_counter += 1
-            if self.write_counter % self.pagination == 0:
-                logging.info('Wrote %s sets of data to influxdb (res: %s)' % (self.write_counter, res))
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            emsg = ''.join('' + line for line in lines)
-            logging.warning('Caught exception on JSON data reading: \n%s' % (emsg))
+        except Exception as e:
+            print('Unknown error', e)
 
     def run(self):
-        self.setup_mqtt_client()
-        self.setup_influx_client()
-        logging.info('Starting to work')
+        self.read_config()
+        self._setup_mqtt()
+        self._setup_influx()
 
         while True:
             try:
                 self.mqtt_client.loop_forever()
-            except:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-                emsg = ''.join('' + line for line in lines)
-                logging.warning('Caught exception in mqtt.Client().loop_forever(): \n%s' % (emsg))
+            except Exception as e:
+                print('Unknown error', e)
 
 
 if __name__ == "__main__":
-    transport = MqttTransport()
+    transport = mqtttransport('../test')
     transport.run()
+
+
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4

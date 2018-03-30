@@ -1,0 +1,24 @@
+---
+sensor_network:
+  sensors:
+  - address: "00:00:00:00:00:00"
+    name: "Entry Hall"
+    temp_correction: -0.5
+    humi_correction: 5
+    database: "work"
+
+  - address: "00:00:00:00:00:00"
+    name: "Entry Hall"
+    temp_correction: 0.7
+    humi_correction: -15
+    database: "home"
+
+  config:
+    mqtt_host: 127.0.0.1
+    mqtt_port: 1883 # Optional
+    mqtt_topic: "sensor_network/sensors"
+    influx_port: 8086 # Optional
+    influx_user: "username" # Only if auth is configured
+    influx_pass: "password" # Only if auth is configured
+    influx_database: "default" # The default database if the sensor has no destination
+
