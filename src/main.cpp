@@ -1,6 +1,8 @@
 /* test */
 
 #include <ESP8266WiFi.h>
+#include <ArduinoOTA.h>
+#include <ESP8266mDNS.h>
 #include <WiFiClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
@@ -138,9 +140,14 @@ bool wifiConnect() {
 }
 
 void setup(void) {
+  delay(500);
+
+  wifiConnect();
+
   #ifdef DEBUG
     Serial.begin(SERIAL_BAUD); // initialize serial connection
   #endif
+
   dht.begin();          // initialize dht sensor
 
   DEBUG_PRINTLN("\nDHT Weather Reading Server");
@@ -150,6 +157,29 @@ void setup(void) {
   DEBUG_PRINTLN(WiFi.localIP());
   DEBUG_PRINT("MAC address: ");
   DEBUG_PRINTLN(WiFi.macAddress());
+
+  // OTA Startup
+  ArduinoOTA.setPassword((const char *)"123");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+  // END OTA
 
   snprintf( pub_topic, 64, "%s/sensor", MQTT_TOPIC_BASE);
 
@@ -165,10 +195,16 @@ void setup(void) {
   }
 
   // Put the Wifi to sleep again
-  WiFi.forceSleepBegin();
+  if (FORCEWIFISLEEP) {
+    WiFi.forceSleepBegin();
+  }
 }
 
 void loop(void) {
+
+  // Handle OTA stuff
+  ArduinoOTA.handle();
+
   // first, get current millis
   // TODO check if there is a buffer overflow with millis. it might get reset
   // after some days
@@ -247,7 +283,9 @@ void loop(void) {
       }
 
       // Put the Wifi to sleep again
-      WiFi.forceSleepBegin();
+      if (FORCEWIFISLEEP) {
+        WiFi.forceSleepBegin();
+      }
       delay(100);
     }
 

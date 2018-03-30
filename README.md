@@ -69,3 +69,10 @@ Based on https://gist.github.com/mosquito/b23e1c1e5723a7fd9e6568e5cf91180f
 * systemctl daemon-reload
 * systemctl enable docker-compose@sensor-network
 * systemctl start docker-compose@sensor-network
+
+# OTA Updates
+
+Will be enabled in the future. Fails if WIFISLEEPFORCE is enabled.
+add `upload_flags = --auth="123"` to your platformio.ini
+
+use `platformio run -t upload --upload-port $IP` to upload new firmware
