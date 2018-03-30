@@ -96,7 +96,7 @@ bool mqttReconnect() {
     DEBUG_PRINT("Attempting MQTT connection...");
 
     // Create a random client ID
-    String clientId = String(CLIENT_ID) + "-";
+    String clientId = "sensor_network";
     clientId += String(random(0xffff), HEX);
 
     // Attempt to connect
@@ -151,7 +151,7 @@ void setup(void) {
   DEBUG_PRINT("MAC address: ");
   DEBUG_PRINTLN(WiFi.macAddress());
 
-  snprintf( pub_topic, 64, MQTT_TOPIC_BASE, "/%s/temperature", CLIENT_ID );
+  snprintf( pub_topic, 64, "%s/sensor", MQTT_TOPIC_BASE);
 
   // Start the Pub/Sub client
   mqttClient.setServer(MQTT_SERVER, 1883);
@@ -223,7 +223,6 @@ void loop(void) {
              DEBUG_PRINT(".");
             StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
             JsonObject& root    = jsonBuffer.createObject();
-            root["id"] = CLIENT_ID;
             root["mac_address"] = WiFi.macAddress();
             root["h"] = humidityValues[i];
             root["t"] = temperatureValues[i];
