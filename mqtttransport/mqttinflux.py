@@ -4,6 +4,7 @@ import yaml
 import json
 import time
 import logging
+import argparse
 import paho.mqtt.client as mqtt
 import influxdb.client as influx
 
@@ -177,8 +178,13 @@ class mqtttransport:
 
 
 if __name__ == "__main__":
-    transport = mqtttransport('../test')
-    transport.run()
 
+    parser = argparse.ArgumentParser(description='Argparse')
+    parser.add_argument('-c', '--config', help='Configuration file', required=True)
+    args = parser.parse_args()
+
+    if args.config:
+        transport = mqtttransport(args.config)
+        transport.run()
 
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4

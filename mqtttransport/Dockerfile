@@ -1,4 +1,4 @@
-FROM python:3
+FROM python:3-alpine
 ADD requirements.txt /
-ADD mqtt-influx.py /
+ADD mqttinflux.py /
 RUN pip install -r /requirements.txt

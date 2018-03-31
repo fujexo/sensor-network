@@ -52,17 +52,9 @@ services:
   mqtttransport:
     image: fujexo/mqtttransport
     container_name: mqtttransport
-    command: python /mqtt-influx.py
+    command: python /mqttinflux.py -c /sensors.yml
     depends_on:
       - "influxdb"
       - "mosquitto"
     volumes:
-      - ./sensor_names.json:/sensor_names.json
-    environment:
-      - MQTT_PORT=${MQTT_PORT}
-      - MQTT_HOST=${MQTT_HOST}
-      - INFLUX_HOST=${INFLUX_HOST}
-      - INFLUX_PORT=${INFLUX_PORT}
-      - INFLUX_USER=${INFLUX_USER}
-      - INFLUX_PASS=${INFLUX_PASS}
-      - INFLUX_DABA=${INFLUX_DABA}
+      - ./sensors.yml:/sensors.yml
