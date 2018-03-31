@@ -4,6 +4,7 @@
   // Development settings
   //#define DEBUG
   #define SERIAL_BAUD     115200
+  #define FORCEWIFISLEEP  false
 
   // Sensor settings
   #define DHTTYPE         DHT22
