@@ -16,6 +16,8 @@
   #define WIFI_SSID       "yourwifissid"
   #define WIFI_PASSWORD   "yourwifipasswd"
   #define MQTT_SERVER     "mqttserverip"
+  #define MQTT_USERNAME   ""
+  #define MQTT_PASSWORD   ""
   #define CONNECT_TIMEOUT 5
 
   // Loop settings

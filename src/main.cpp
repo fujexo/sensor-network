@@ -100,7 +100,7 @@ bool mqttReconnect() {
     clientId += String(random(0xffff), HEX);
 
     // Attempt to connect
-    if (mqttClient.connect(clientId.c_str())) {
+    if (mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
       DEBUG_PRINTLN("connected");
       // Once connected, publish an announcement...
       mqttClient.publish("outTopic", "hello world");
