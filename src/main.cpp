@@ -103,9 +103,9 @@ bool mqttReconnect() {
     if (mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
       DEBUG_PRINTLN("connected");
       // Once connected, publish an announcement...
-      mqttClient.publish("outTopic", "hello world");
+      //mqttClient.publish("outTopic", "hello world");
       // ... and resubscribe
-      mqttClient.subscribe("inTopic");
+      //mqttClient.subscribe("inTopic");
       return true;
     } else {
       DEBUG_PRINT("failed, rc=");
@@ -122,7 +122,7 @@ bool wifiConnect() {
   WiFi.forceSleepWake();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   WiFi.mode(WIFI_STA); //  Force the ESP into client-only mode
-  delay(100);
+  delay(500);
   DEBUG_PRINT("Reconnecting to Wifi ");
   while (WiFi.status() != WL_CONNECTED) {
     retryCounter--;
