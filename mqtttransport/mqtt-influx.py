@@ -34,6 +34,8 @@ class MqttTransport:
         self.if_pass = os.environ.get('INFLUX_PASS')
         self.mq_host = os.environ.get('MQTT_HOST', "mosquitto")
         self.mq_port = int(os.environ.get('MQTT_PORT', 1883))
+        self.mq_user = os.environ.get('MQTT_USER', None)
+        self.mq_pass = os.environ.get('MQTT_PASS', None)
 
         # Transport clients
         self.influx_client = None
@@ -50,6 +52,10 @@ class MqttTransport:
 
             logging.info('Connecting to MQTT on %s:%s' % (self.mq_host,
                                                           self.mq_port))
+
+            if self.mq_user and self.mq_pass:
+                self.mqtt_client.username_pw_set(self.mq_user, self.mq_pass)
+
             self.mqtt_client.connect(self.mq_host, self.mq_port, 60)
 
     def setup_influx_client(self):
