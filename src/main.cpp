@@ -5,7 +5,7 @@
 #include "config.h"
 
 // without this, wifi somehow does not work
-#define FPM_SLEEP_MAX_TIME 0xFFFFFFF
+// #define FPM_SLEEP_MAX_TIME 0xFFFFFFF
 
 WiFiClient espClient;
 // or... use WiFiFlientSecure for SSL
