@@ -210,6 +210,9 @@ void loop(void) {
           } else {
             readyToUpload = true;
           }
+        } else {
+          DEBUG_PRINTLN(" Yes");
+          readyToUpload = true;
         }
       }
 
