@@ -1,11 +1,11 @@
-/* test */
-
 #include <ESP8266WiFi.h>
-#include <WiFiClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
 #include "config.h"
+
+// without this, wifi somehow does not work
+#define FPM_SLEEP_MAX_TIME 0xFFFFFFF
 
 WiFiClient espClient;
 // or... use WiFiFlientSecure for SSL
@@ -137,7 +137,8 @@ bool wifiConnect() {
     delay(100);
     DEBUG_PRINT(".");
   }
-  DEBUG_PRINTLN(" done");
+  DEBUG_PRINT("Connected, IP address: ");
+  DEBUG_PRINTLN(WiFi.localIP());
   return true;
 }
 
@@ -150,15 +151,11 @@ void setup(void) {
   dht.begin();          // initialize dht sensor
 
   DEBUG_PRINTLN("\nDHT Weather Reading Server");
-  DEBUG_PRINT("Connected to ");
-  DEBUG_PRINTLN(WIFI_SSID);
-  DEBUG_PRINT("IP address: ");
-  DEBUG_PRINTLN(WiFi.localIP());
 
   snprintf( pub_topic, 64, "sysensors/%s/temperature", CLIENT_ID );
 
   // Start the Pub/Sub client
-  mqttClient.setServer(MQTT_SERVER, 1883);
+  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
 
   // initializing arrays
@@ -169,7 +166,8 @@ void setup(void) {
   }
 
   // Put the Wifi to sleep again
-  WiFi.forceSleepBegin();
+  //WiFi.forceSleepBegin();
+  delay(100);
 }
 
 void loop(void) {
@@ -177,7 +175,6 @@ void loop(void) {
   // TODO check if there is a buffer overflow with millis. it might get reset
   // after some days
   long now = millis();
-
   if (now - lastMsg > LOOP_SLEEP) {
     long loopDrift = (now - lastMsg) - LOOP_SLEEP;
     DEBUG_PRINTLN("----------------------------------------------------------");
@@ -251,7 +248,7 @@ void loop(void) {
       }
 
       // Put the Wifi to sleep again
-      WiFi.forceSleepBegin();
+      //WiFi.forceSleepBegin();
       delay(100);
     }
 
