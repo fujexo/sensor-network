@@ -8,6 +8,10 @@
 #include "config.h"
 
 WiFiClient espClient;
+// or... use WiFiFlientSecure for SSL
+//WiFiClientSecure espClient;
+
+// Initialize MQTT
 PubSubClient mqttClient(espClient);
 
 #ifdef DEBUG
