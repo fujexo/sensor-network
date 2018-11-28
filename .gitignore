@@ -6,3 +6,5 @@ src/config.h
 .clang_complete
 .gcc-flags.json
 sensor_names.json
+.idea
+package-lock.json
