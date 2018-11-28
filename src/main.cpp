@@ -126,7 +126,7 @@ bool wifiConnect() {
   WiFi.forceSleepWake();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   WiFi.mode(WIFI_STA); //  Force the ESP into client-only mode
-  delay(500);
+  delay(100);
   DEBUG_PRINT("Reconnecting to Wifi ");
   while (WiFi.status() != WL_CONNECTED) {
     retryCounter--;
@@ -144,6 +144,8 @@ bool wifiConnect() {
 void setup(void) {
   #ifdef DEBUG
     Serial.begin(SERIAL_BAUD); // initialize serial connection
+    // delay for the serial monitor to start
+    delay(3000);
   #endif
   dht.begin();          // initialize dht sensor
 
