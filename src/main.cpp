@@ -1,13 +1,17 @@
-/* test */
-
 #include <ESP8266WiFi.h>
-#include <WiFiClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
 #include "config.h"
 
+// without this, wifi somehow does not work
+// #define FPM_SLEEP_MAX_TIME 0xFFFFFFF
+
 WiFiClient espClient;
+// or... use WiFiFlientSecure for SSL
+//WiFiClientSecure espClient;
+
+// Initialize MQTT
 PubSubClient mqttClient(espClient);
 
 #ifdef DEBUG
@@ -100,12 +104,12 @@ bool mqttReconnect() {
     clientId += String(random(0xffff), HEX);
 
     // Attempt to connect
-    if (mqttClient.connect(clientId.c_str())) {
+    if (mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
       DEBUG_PRINTLN("connected");
       // Once connected, publish an announcement...
-      mqttClient.publish("outTopic", "hello world");
+      //mqttClient.publish("outTopic", "hello world");
       // ... and resubscribe
-      mqttClient.subscribe("inTopic");
+      //mqttClient.subscribe("inTopic");
       return true;
     } else {
       DEBUG_PRINT("failed, rc=");
@@ -119,40 +123,45 @@ bool mqttReconnect() {
 
 bool wifiConnect() {
   int retryCounter = CONNECT_TIMEOUT * 10;
-  WiFi.forceSleepWake();
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  // WiFi.forceSleepWake();
+  // WiFi.setSleepMode(WIFI_LIGHT_SLEEP, 5);
+  delay(100);
+  // WiFi.mode(WIFI_OFF); //  Force the ESP into WIFI off
   WiFi.mode(WIFI_STA); //  Force the ESP into client-only mode
   delay(100);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  delay(100);
   DEBUG_PRINT("Reconnecting to Wifi ");
+  // WiFi.printDiag(Serial);
   while (WiFi.status() != WL_CONNECTED) {
     retryCounter--;
     if (retryCounter <= 0) {
-      DEBUG_PRINTLN(" timeout reached!");
+      DEBUG_PRINT(" timeout reached! Wifi Status: ");
+      DEBUG_PRINTLN(WiFi.status());
       return false;
     }
     delay(100);
     DEBUG_PRINT(".");
   }
-  DEBUG_PRINTLN(" done");
+  DEBUG_PRINT("Connected, IP address: ");
+  DEBUG_PRINTLN(WiFi.localIP());
   return true;
 }
 
 void setup(void) {
   #ifdef DEBUG
     Serial.begin(SERIAL_BAUD); // initialize serial connection
+    // delay for the serial monitor to start
+    delay(3000);
   #endif
   dht.begin();          // initialize dht sensor
 
   DEBUG_PRINTLN("\nDHT Weather Reading Server");
-  DEBUG_PRINT("Connected to ");
-  DEBUG_PRINTLN(WIFI_SSID);
-  DEBUG_PRINT("IP address: ");
-  DEBUG_PRINTLN(WiFi.localIP());
 
   snprintf( pub_topic, 64, "sysensors/%s/temperature", CLIENT_ID );
 
   // Start the Pub/Sub client
-  mqttClient.setServer(MQTT_SERVER, 1883);
+  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
 
   // initializing arrays
@@ -163,7 +172,8 @@ void setup(void) {
   }
 
   // Put the Wifi to sleep again
-  WiFi.forceSleepBegin();
+  // WiFi.forceSleepBegin();
+  delay(1);
 }
 
 void loop(void) {
@@ -171,7 +181,6 @@ void loop(void) {
   // TODO check if there is a buffer overflow with millis. it might get reset
   // after some days
   long now = millis();
-
   if (now - lastMsg > LOOP_SLEEP) {
     long loopDrift = (now - lastMsg) - LOOP_SLEEP;
     DEBUG_PRINTLN("----------------------------------------------------------");
@@ -207,6 +216,9 @@ void loop(void) {
           } else {
             readyToUpload = true;
           }
+        } else {
+          DEBUG_PRINTLN(" Yes");
+          readyToUpload = true;
         }
       }
 
@@ -245,8 +257,13 @@ void loop(void) {
       }
 
       // Put the Wifi to sleep again
-      WiFi.forceSleepBegin();
-      delay(100);
+      // WiFi.disconnect();
+      // delay(1000);
+      // WiFi.mode(WIFI_OFF);
+      // delay(100);
+      // WiFi.forceSleepBegin();
+      // WiFi.mode(WIFI_OFF); //  Force the ESP into WIFI off
+      delay(1);
     }
 
     // calculate how long our current loop took, and fix the delay, so that the

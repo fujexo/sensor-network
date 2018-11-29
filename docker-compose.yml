@@ -61,6 +61,8 @@ services:
     environment:
       - MQTT_PORT=${MQTT_PORT}
       - MQTT_HOST=${MQTT_HOST}
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASS=${MQTT_PASS}
       - INFLUX_HOST=${INFLUX_HOST}
       - INFLUX_PORT=${INFLUX_PORT}
       - INFLUX_USER=${INFLUX_USER}
