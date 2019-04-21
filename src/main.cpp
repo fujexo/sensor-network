@@ -5,7 +5,7 @@
 #include "config.h"
 
 // without this, wifi somehow does not work
-// #define FPM_SLEEP_MAX_TIME 0xFFFFFFF
+#define FPM_SLEEP_MAX_TIME 0xFFFFFFF
 
 WiFiClient espClient;
 // or... use WiFiFlientSecure for SSL
@@ -124,16 +124,14 @@ bool mqttReconnect() {
 bool wifiConnect() {
   int retryCounter = CONNECT_TIMEOUT * 10;
   // WiFi.forceSleepWake();
-  // WiFi.setSleepMode(WIFI_LIGHT_SLEEP, 5);
-  delay(100);
-  // WiFi.mode(WIFI_OFF); //  Force the ESP into WIFI off
-  WiFi.mode(WIFI_STA); //  Force the ESP into client-only mode
-  delay(100);
+  WiFi.mode(WIFI_STA);
+  // wifi_station_connect();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  delay(100);
   DEBUG_PRINT("Reconnecting to Wifi ");
   // WiFi.printDiag(Serial);
-  while (WiFi.status() != WL_CONNECTED) {
+
+  // make sure to wait for wifi connection
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     retryCounter--;
     if (retryCounter <= 0) {
       DEBUG_PRINT(" timeout reached! Wifi Status: ");
@@ -158,7 +156,7 @@ void setup(void) {
 
   DEBUG_PRINTLN("\nDHT Weather Reading Server");
 
-  snprintf( pub_topic, 64, "sysensors/%s/temperature", CLIENT_ID );
+  snprintf( pub_topic, 64, "sensor-network/%s/temperature", CLIENT_ID );
 
   // Start the Pub/Sub client
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
@@ -209,15 +207,16 @@ void loop(void) {
       if (WiFi.status() == WL_CONNECTED) {
         DEBUG_PRINT("Is the MQTT Client already connected? ");
         if (!mqttClient.connected()) {
-          DEBUG_PRINTLN(" No, let's try to reconnect");
+          DEBUG_PRINTLN("No, let's try to reconnect");
           if (! mqttReconnect()) {
             // This should not happen, but seems to...
-            DEBUG_PRINTLN("MQTT was unable to connect! Exiting the upload loop");
+            DEBUG_PRINTLN(" > failed! Exiting the upload loop");
           } else {
+            DEBUG_PRINTLN(" > success");
             readyToUpload = true;
           }
         } else {
-          DEBUG_PRINTLN(" Yes");
+          DEBUG_PRINTLN("Yes");
           readyToUpload = true;
         }
       }
@@ -258,12 +257,10 @@ void loop(void) {
 
       // Put the Wifi to sleep again
       // WiFi.disconnect();
-      // delay(1000);
-      // WiFi.mode(WIFI_OFF);
       // delay(100);
+      // WiFi.mode(WIFI_OFF);
       // WiFi.forceSleepBegin();
-      // WiFi.mode(WIFI_OFF); //  Force the ESP into WIFI off
-      delay(1);
+      delay(100);
     }
 
     // calculate how long our current loop took, and fix the delay, so that the
