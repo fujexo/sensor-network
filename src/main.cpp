@@ -2,17 +2,9 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
+
+// Read settingd from config.h
 #include "config.h"
-
-// without this, wifi somehow does not work
-#define FPM_SLEEP_MAX_TIME 0xFFFFFFF
-
-WiFiClient espClient;
-// or... use WiFiFlientSecure for SSL
-//WiFiClientSecure espClient;
-
-// Initialize MQTT
-PubSubClient mqttClient(espClient);
 
 #ifdef DEBUG
   #define DEBUG_PRINT(x) Serial.print (x)
@@ -21,6 +13,13 @@ PubSubClient mqttClient(espClient);
   #define DEBUG_PRINT(x)
   #define DEBUG_PRINTLN(x)
 #endif
+
+WiFiClient espClient;
+// or... use WiFiFlientSecure for SSL
+//WiFiClientSecure espClient;
+
+// Initialize MQTT
+PubSubClient mqttClient(espClient);
 
 char pub_topic[64];
 long lastMsg = 0;
@@ -68,27 +67,12 @@ void readSensorData() {
   millisValues[valuesCounter] = millis();
 }
 
-void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  DEBUG_PRINT("Message arrived [");
-  DEBUG_PRINT(topic);
-  DEBUG_PRINT("] ");
-  for (int i = 0; i < length; i++) {
-    DEBUG_PRINT((char)payload[i]);
-  }
-  DEBUG_PRINTLN();
-
-  // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '1') {
-    digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
-    // but actually the LED is on; this is because
-    // it is acive low on the ESP-01)
-  } else {
-    digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
-  }
-}
-
 bool mqttReconnect() {
-  // Loop until we're reconnected
+  // Create a client ID based on the MAC address
+  String clientId = String("Sensor-Network") + "-";
+  clientId += String(WiFi.macAddress());
+
+    // Loop until we're reconnected
   int counter = 0;
   while (!mqttClient.connected()) {
     counter++;
@@ -98,10 +82,6 @@ bool mqttReconnect() {
     }
 
     DEBUG_PRINT("Attempting MQTT connection...");
-
-    // Create a random client ID
-    String clientId = String(CLIENT_ID) + "-";
-    clientId += String(random(0xffff), HEX);
 
     // Attempt to connect
     if (mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
@@ -119,30 +99,26 @@ bool mqttReconnect() {
       delay(2000);
     }
   }
+  return false;
 }
 
 bool wifiConnect() {
   int retryCounter = CONNECT_TIMEOUT * 10;
-  // WiFi.forceSleepWake();
-  WiFi.mode(WIFI_STA);
-  // wifi_station_connect();
+  WiFi.forceSleepWake();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.mode(WIFI_STA); //  Force the ESP into client-only mode
+  delay(100);
   DEBUG_PRINT("Reconnecting to Wifi ");
-  // WiFi.printDiag(Serial);
-
-  // make sure to wait for wifi connection
-  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED) {
     retryCounter--;
     if (retryCounter <= 0) {
-      DEBUG_PRINT(" timeout reached! Wifi Status: ");
-      DEBUG_PRINTLN(WiFi.status());
+      DEBUG_PRINTLN(" timeout reached!");
       return false;
     }
     delay(100);
     DEBUG_PRINT(".");
   }
-  DEBUG_PRINT("Connected, IP address: ");
-  DEBUG_PRINTLN(WiFi.localIP());
+  DEBUG_PRINTLN(" done");
   return true;
 }
 
@@ -156,11 +132,10 @@ void setup(void) {
 
   DEBUG_PRINTLN("\nDHT Weather Reading Server");
 
-  snprintf( pub_topic, 64, "sensor-network/%s/temperature", CLIENT_ID );
+  snprintf( pub_topic, 64, "/sensor-network/%s/temperature", CLIENT_ID );
 
   // Start the Pub/Sub client
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
-  mqttClient.setCallback(mqttCallback);
 
   // initializing arrays
   for (int i = 0; i < NUM_CACHE; i++) {

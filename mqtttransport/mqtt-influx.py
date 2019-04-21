@@ -42,7 +42,7 @@ class MqttTransport:
         self.mqtt_client = None
 
     def on_connect(self, client, userdata, flags, rc):
-        client.subscribe("sensor-network/+/temperature")
+        client.subscribe("/sensor-network/+/temperature")
 
     def setup_mqtt_client(self):
         if not self.mqtt_client:
