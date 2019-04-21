@@ -1,4 +1,14 @@
 {
-  "example1": "Example Sensor 1",
-  "example2": "Example Sensor 2"
+
+  "MAC:A": {
+    "sensor_name": "Sensor A Name",
+    "temp_diff": 0.0,
+    "humid_diff": 0.0
+    },
+  "MAC:B": {
+    "sensor_name": "Sensor B Name",
+    "temp_diff": 0.0,
+    "humid_diff": 0.0
+    },
+
 }

@@ -56,8 +56,8 @@ void readSensorData() {
   // Check if any reads failed and exit early (to try again).
   if (isnan(tmpHumidity) || isnan(tmpHumidity)) {
     DEBUG_PRINTLN("Failed to read from DHT sensor!");
-    temperatureValues[valuesCounter] = NULL;         // Read temperature as Celcius
-    humidityValues[valuesCounter] = NULL;          // Read humidity (percent)
+    temperatureValues[valuesCounter] = 0;         // Read temperature as Celcius
+    humidityValues[valuesCounter] = 0;          // Read humidity (percent)
   } else {
     DEBUG_PRINTLN("Temperature: " + String(float(tmpTemperature) + TEMP_CORR));
     DEBUG_PRINTLN("Humidity: " + String(float(tmpHumidity) + HUMID_CORR));
@@ -131,16 +131,23 @@ void setup(void) {
   dht.begin();          // initialize dht sensor
 
   DEBUG_PRINTLN("\nDHT Weather Reading Server");
+  DEBUG_PRINTLN("My MAC: " + String(WiFi.macAddress()));
 
-  snprintf( pub_topic, 64, "/sensor-network/%s/temperature", CLIENT_ID );
+  // subscript to the mac address (private) topic
+  char topic[64];
+  strcat(topic, "/sensor-network/");
+  String clientMac = WiFi.macAddress();
+  strcat(topic, clientMac.c_str());
+  strcat(topic, "/temperature");
+  mqttClient.subscribe(topic, 1);
 
   // Start the Pub/Sub client
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
 
   // initializing arrays
   for (int i = 0; i < NUM_CACHE; i++) {
-    humidityValues[i] = NULL;
-    temperatureValues[i] = NULL;
+    humidityValues[i] = 0;
+    temperatureValues[i] = 0;
     millisValues[i] = 0;
   }
 
@@ -157,6 +164,7 @@ void loop(void) {
   if (now - lastMsg > LOOP_SLEEP) {
     long loopDrift = (now - lastMsg) - LOOP_SLEEP;
     DEBUG_PRINTLN("----------------------------------------------------------");
+    DEBUG_PRINTLN("My MAC: " + String(WiFi.macAddress()));
     DEBUG_PRINTLN("Worker loop drift: " + String(loopDrift));
     lastMsg = now;
 
@@ -204,19 +212,18 @@ void loop(void) {
         DEBUG_PRINT("Sending the JSON data ");
         for (int i = 0; i <= NUM_CACHE; i++) {
           if (temperatureValues[i] && humidityValues[i] && humidityValues[i] != 0) {
-             DEBUG_PRINT(".");
-            StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
-            JsonObject& root    = jsonBuffer.createObject();
-            root["id"] = CLIENT_ID;
-            root["h"] = humidityValues[i];
-            root["t"] = temperatureValues[i];
-            root["m"] = millisValues[i];
-            root["now"] = millis();
-            root.printTo(msg, 128);
+            DEBUG_PRINT(".");
+            StaticJsonDocument<SENSORDATA_JSON_SIZE> jsonBuffer;
+            jsonBuffer["id"] = String(WiFi.macAddress());
+            jsonBuffer["h"] = humidityValues[i];
+            jsonBuffer["t"] = temperatureValues[i];
+            jsonBuffer["m"] = millisValues[i];
+            jsonBuffer["now"] = millis();
+            serializeJson(jsonBuffer, msg);
             if (mqttClient.publish(pub_topic, msg)) {
               // Publishing values successful, removing them from cache
-              humidityValues[i] = NULL;
-              temperatureValues[i] = NULL;
+              humidityValues[i] = 0;
+              temperatureValues[i] = 0;
               millisValues[i] = 0;
             }
 

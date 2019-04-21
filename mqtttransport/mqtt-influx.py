@@ -84,17 +84,17 @@ class MqttTransport:
         json_data = json.loads(msg.payload)
 
         try:
-            if 'now' not in json_data.keys():
-                logging.warning("Old API version on sensor %s" % json_data['sensor_name'])
-                return False
-
             now = int(time.time() * 1000000000)
             ts = now - int((int(json_data['now']) - int(json_data['m'])) * 1000000)
 
             if json_data['id'] in self.sensor_names.keys():
-                sensor_name = self.sensor_names[json_data['id']]
+                sensor_name = self.sensor_names[json_data['id']].sensor_name
+                temp_diff = self.sensor_names[json_data['id']].temp_diff
+                humid_diff = self.sensor_names[json_data['id']].humid_diff
             else:
                 sensor_name = json_data['id']
+                temp_diff = 0.0
+                humid_diff = 0.0
 
             json_body = [
             {
@@ -104,8 +104,8 @@ class MqttTransport:
                     "sensor_name": sensor_name,
                 },
                 "fields": {
-                    "humidity": float(json_data['h']) / 100,
-                    "temperature": float(json_data['t']) / 100
+                    "humidity": float(json_data['h']) / 100 + humid_diff,
+                    "temperature": float(json_data['t']) / 100 + temp_diff
                 },
                 "time": ts,
                 "time_precision": "u"

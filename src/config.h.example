@@ -12,7 +12,6 @@
   #define TEMP_CORR       0
 
   // Wifi settings
-  #define CLIENT_ID       "sensor_name"
   #define WIFI_SSID       "yourwifissid"
   #define WIFI_PASSWORD   "yourwifipasswd"
   #define MQTT_SERVER     "mqttserverip"
