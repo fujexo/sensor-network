@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import yaml
 import logging
 import os
 import sys
@@ -45,11 +46,16 @@ class MqttTransport:
     def on_connect(self, client, userdata, flags, rc):
         client.subscribe("/sensor-network/+/temperature")
 
+    def on_disconnect(client, userdata, rc):
+        if rc != 0:
+            logging.warning("Unexpected MQTT disconnection. Will auto-reconnect")
+
     def setup_mqtt_client(self):
         if not self.mqtt_client:
             self.mqtt_client = mqtt.Client()
             self.mqtt_client.on_connect = self.on_connect
             self.mqtt_client.on_message = self.on_message
+            self.mqtt_client.on_disconnect = self.on_disconnect
 
             logging.info('Connecting to MQTT on %s:%s' % (self.mq_host,
                                                           self.mq_port))
@@ -57,7 +63,14 @@ class MqttTransport:
             if self.mq_user and self.mq_pass:
                 self.mqtt_client.username_pw_set(self.mq_user, self.mq_pass)
 
-            self.mqtt_client.connect(self.mq_host, self.mq_port, 60)
+            while not self.connected:
+                try:
+                    self.mqtt_client.connect(self.mq_host, self.mq_port, 60)
+                    self.connected = True
+                except:
+                    time.sleep(3)
+                    logging.warning("Retry connection ...")
+
 
     def setup_influx_client(self):
         logging.info('Connecting to influx on %s:%s as %s to db %s' % (self.if_host,
@@ -75,9 +88,10 @@ class MqttTransport:
         now = time.time()
         if self.last_file_load + self.sensor_name_reload_timeout < now:
             self.last_file_load = now
-            logging.warning("Reloading sensor names from file")
-            with open('sensor_names.json') as data_file:
-                self.sensor_names = json.load(data_file)
+            logging.warning("Reloading sensor names from file...")
+            with open('/sensor_names.yml') as data_file:
+                self.sensor_names = yaml.safe_load(data_file)
+            logging.info("Known sensors: %s" % ", ".join(self.sensor_names.keys()))
 
     def on_message(self, client, userdata, msg):
         self.load_sensor_names()
