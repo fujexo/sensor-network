@@ -134,12 +134,12 @@ void setup(void) {
   DEBUG_PRINTLN("My MAC: " + String(WiFi.macAddress()));
 
   // subscript to the mac address (private) topic
-  char topic[64];
-  strcat(topic, "/sensor-network/");
+  // char topic[64];
+  strcat(pub_topic, "/sensor-network/");
   String clientMac = WiFi.macAddress();
-  strcat(topic, clientMac.c_str());
-  strcat(topic, "/temperature");
-  mqttClient.subscribe(topic, 1);
+  strcat(pub_topic, clientMac.c_str());
+  strcat(pub_topic, "/temperature");
+  // mqttClient.subscribe(topic, 1);
 
   // Start the Pub/Sub client
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
