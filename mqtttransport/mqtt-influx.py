@@ -25,6 +25,7 @@ class MqttTransport:
         self.sensor_name_reload_timeout = 60
         self.last_file_load = 0
         self.sensor_names = {}
+        self.connected = False
 
         # Get settings from environment
         self.if_host = os.environ.get('INFLUX_HOST', "influxdb")
@@ -88,10 +89,11 @@ class MqttTransport:
             ts = now - int((int(json_data['now']) - int(json_data['m'])) * 1000000)
 
             if json_data['id'] in self.sensor_names.keys():
-                sensor_name = self.sensor_names[json_data['id']].sensor_name
-                temp_diff = self.sensor_names[json_data['id']].temp_diff
-                humid_diff = self.sensor_names[json_data['id']].humid_diff
+                sensor_name = self.sensor_names[json_data['id']]['sensor_name']
+                temp_diff = float(self.sensor_names[json_data['id']]['temp_diff'])
+                humid_diff = float(self.sensor_names[json_data['id']]['humid_diff'])
             else:
+                logging.warning("Sensor <%s> not found in sensor_names.yml. Configured sensors: %s" % (json_data['id'], ", ".join(self.sensor_names.keys())))
                 sensor_name = json_data['id']
                 temp_diff = 0.0
                 humid_diff = 0.0
