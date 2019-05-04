@@ -44,7 +44,13 @@ class MqttTransport:
         self.mqtt_client = None
 
     def on_connect(self, client, userdata, flags, rc):
-        client.subscribe("/sensor-network/+/temperature")
+        self.mqtt_client.subscribe("/sensor-network/#")
+        self.mqtt_client.message_callback_add("/sensor-network/+/temperature", self.on_json_message)  # old, needs to be renamed to json on clients
+        self.mqtt_client.message_callback_add("/sensor-network/+/json", self.on_json_message)
+
+        self.mqtt_client.subscribe("/sonoff/#")
+        self.mqtt_client.message_callback_add("/sonoff/+/temperature", self.on_temperature)
+        self.mqtt_client.message_callback_add("/sonoff/+/humidity", self.on_humidity)
 
     def on_disconnect(client, userdata, rc):
         if rc != 0:
@@ -71,7 +77,6 @@ class MqttTransport:
                     time.sleep(3)
                     logging.warning("Retry connection ...")
 
-
     def setup_influx_client(self):
         logging.info('Connecting to influx on %s:%s as %s to db %s' % (self.if_host,
                                                                        self.if_port,
@@ -94,6 +99,9 @@ class MqttTransport:
             logging.info("Known sensors: %s" % ", ".join(self.sensor_names.keys()))
 
     def on_message(self, client, userdata, msg):
+        logging.debug("Recieved MQTT message: <%s> <%s>" % (msg.topic, msg.payload.decode("utf-8")))
+
+    def on_json_message(self, client, userdata, msg):
         self.load_sensor_names()
 
         json_data = json.loads(msg.payload)
@@ -128,6 +136,42 @@ class MqttTransport:
             }
             ]
 
+            res = self.influx_client.write_points(json_body)
+            self.write_counter += 1
+            if self.write_counter % self.pagination == 0:
+                logging.info('Wrote %s sets of data to influxdb (res: %s)' % (self.write_counter, res))
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            emsg = ''.join('' + line for line in lines)
+            logging.warning('Caught exception on JSON data reading: \n%s' % (emsg))
+
+    def on_temperature(self, client, userdata, msg):
+        self.load_sensor_names()
+
+        try:
+            sensor_id = "sonoff-%s" % msg.topic.split("/")[-2]
+
+            if sensor_id in self.sensor_names.keys():
+                sensor_name = self.sensor_names[sensor_id]['sensor_name']
+                temp_diff = float(self.sensor_names[sensor_id]['temp_diff'])
+            else:
+                logging.warning("Sensor <%s> not found in sensor_names.yml. Configured sensors: %s" % (sensor_id, ", ".join(self.sensor_names.keys())))
+                sensor_name = sensor_id
+                temp_diff = 0.0
+
+            json_body = [
+            {
+                "measurement": "sensors_all",
+                "tags": {
+                    "sensor_id": sensor_id,
+                    "sensor_name": sensor_name,
+                },
+                "fields": {
+                    "temperature": float(msg.payload.decode("utf-8")) + temp_diff,
+                }
+            }
+            ]
 
             res = self.influx_client.write_points(json_body)
             self.write_counter += 1
@@ -138,6 +182,44 @@ class MqttTransport:
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
             emsg = ''.join('' + line for line in lines)
             logging.warning('Caught exception on JSON data reading: \n%s' % (emsg))
+
+    def on_humidity(self, client, userdata, msg):
+        self.load_sensor_names()
+
+        try:
+            sensor_id = "sonoff-%s" % msg.topic.split("/")[-2]
+
+            if sensor_id in self.sensor_names.keys():
+                sensor_name = self.sensor_names[sensor_id]['sensor_name']
+                humid_diff = float(self.sensor_names[sensor_id]['humid_diff'])
+            else:
+                logging.warning("Sensor <%s> not found in sensor_names.yml. Configured sensors: %s" % (sensor_id, ", ".join(self.sensor_names.keys())))
+                sensor_name = sensor_id
+                humid_diff = 0.0
+
+            json_body = [
+            {
+                "measurement": "sensors_all",
+                "tags": {
+                    "sensor_id": sensor_id,
+                    "sensor_name": sensor_name,
+                },
+                "fields": {
+                    "humidity": float(msg.payload.decode("utf-8")) + humid_diff,
+                }
+            }
+            ]
+
+            res = self.influx_client.write_points(json_body)
+            self.write_counter += 1
+            if self.write_counter % self.pagination == 0:
+                logging.info('Wrote %s sets of data to influxdb (res: %s)' % (self.write_counter, res))
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            emsg = ''.join('' + line for line in lines)
+            logging.warning('Caught exception on JSON data reading: \n%s' % (emsg))
+
 
     def run(self):
         self.setup_mqtt_client()

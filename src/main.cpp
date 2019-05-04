@@ -138,7 +138,7 @@ void setup(void) {
   strcat(pub_topic, "/sensor-network/");
   String clientMac = WiFi.macAddress();
   strcat(pub_topic, clientMac.c_str());
-  strcat(pub_topic, "/temperature");
+  strcat(pub_topic, "/json");
   // mqttClient.subscribe(topic, 1);
 
   // Start the Pub/Sub client
