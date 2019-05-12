@@ -3,7 +3,7 @@
 #include <ArduinoJson.h>
 #include <DHT.h>
 
-// Read settingd from config.h
+// Read settings from config.h
 #include "config.h"
 
 #ifdef DEBUG
