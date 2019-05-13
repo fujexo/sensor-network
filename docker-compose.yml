@@ -57,7 +57,7 @@ services:
       - "influxdb"
       - "mosquitto"
     volumes:
-      - ./sensor_names.json:/sensor_names.json
+      - ./sensor_names.yml:/sensor_names.yml
     environment:
       - MQTT_PORT=${MQTT_PORT}
       - MQTT_HOST=${MQTT_HOST}

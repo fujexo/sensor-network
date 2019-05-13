@@ -1,0 +1,11 @@
+---
+
+M:A:C:A:
+  sensor_name: Sensor Name A
+  temp_diff: 0.0
+  humid_diff: 0.0
+
+M:A:C:B:
+  sensor_name: Sensor Name B
+  temp_diff: 0.0
+  humid_diff: 0.0

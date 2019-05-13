@@ -2,17 +2,9 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
+
+// Read settings from config.h
 #include "config.h"
-
-// without this, wifi somehow does not work
-// #define FPM_SLEEP_MAX_TIME 0xFFFFFFF
-
-WiFiClient espClient;
-// or... use WiFiFlientSecure for SSL
-//WiFiClientSecure espClient;
-
-// Initialize MQTT
-PubSubClient mqttClient(espClient);
 
 #ifdef DEBUG
   #define DEBUG_PRINT(x) Serial.print (x)
@@ -21,6 +13,13 @@ PubSubClient mqttClient(espClient);
   #define DEBUG_PRINT(x)
   #define DEBUG_PRINTLN(x)
 #endif
+
+WiFiClient espClient;
+// or... use WiFiFlientSecure for SSL
+//WiFiClientSecure espClient;
+
+// Initialize MQTT
+PubSubClient mqttClient(espClient);
 
 char pub_topic[64];
 long lastMsg = 0;
@@ -57,38 +56,23 @@ void readSensorData() {
   // Check if any reads failed and exit early (to try again).
   if (isnan(tmpHumidity) || isnan(tmpHumidity)) {
     DEBUG_PRINTLN("Failed to read from DHT sensor!");
-    temperatureValues[valuesCounter] = NULL;         // Read temperature as Celcius
-    humidityValues[valuesCounter] = NULL;          // Read humidity (percent)
+    temperatureValues[valuesCounter] = 0;         // Read temperature as Celcius
+    humidityValues[valuesCounter] = 0;          // Read humidity (percent)
   } else {
-    DEBUG_PRINTLN("Temperature: " + String(float(tmpTemperature) + TEMP_CORR));
-    DEBUG_PRINTLN("Humidity: " + String(float(tmpHumidity) + HUMID_CORR));
-    temperatureValues[valuesCounter] = int((tmpTemperature + TEMP_CORR) * 100);         // Read temperature as Celcius
-    humidityValues[valuesCounter] = int((tmpHumidity + HUMID_CORR) * 100);          // Read humidity (percent)
+    DEBUG_PRINTLN("Temperature: " + String(float(tmpTemperature)));
+    DEBUG_PRINTLN("Humidity: " + String(float(tmpHumidity)));
+    temperatureValues[valuesCounter] = int((tmpTemperature) * 100);         // Read temperature as Celcius
+    humidityValues[valuesCounter] = int((tmpHumidity) * 100);          // Read humidity (percent)
   }
   millisValues[valuesCounter] = millis();
 }
 
-void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  DEBUG_PRINT("Message arrived [");
-  DEBUG_PRINT(topic);
-  DEBUG_PRINT("] ");
-  for (int i = 0; i < length; i++) {
-    DEBUG_PRINT((char)payload[i]);
-  }
-  DEBUG_PRINTLN();
-
-  // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '1') {
-    digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
-    // but actually the LED is on; this is because
-    // it is acive low on the ESP-01)
-  } else {
-    digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
-  }
-}
-
 bool mqttReconnect() {
-  // Loop until we're reconnected
+  // Create a client ID based on the MAC address
+  String clientId = String("Sensor-Network") + "-";
+  clientId += String(WiFi.macAddress());
+
+    // Loop until we're reconnected
   int counter = 0;
   while (!mqttClient.connected()) {
     counter++;
@@ -98,10 +82,6 @@ bool mqttReconnect() {
     }
 
     DEBUG_PRINT("Attempting MQTT connection...");
-
-    // Create a random client ID
-    String clientId = String(CLIENT_ID) + "-";
-    clientId += String(random(0xffff), HEX);
 
     // Attempt to connect
     if (mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
@@ -119,32 +99,26 @@ bool mqttReconnect() {
       delay(2000);
     }
   }
+  return false;
 }
 
 bool wifiConnect() {
   int retryCounter = CONNECT_TIMEOUT * 10;
-  // WiFi.forceSleepWake();
-  // WiFi.setSleepMode(WIFI_LIGHT_SLEEP, 5);
-  delay(100);
-  // WiFi.mode(WIFI_OFF); //  Force the ESP into WIFI off
+  WiFi.forceSleepWake();
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   WiFi.mode(WIFI_STA); //  Force the ESP into client-only mode
   delay(100);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  delay(100);
   DEBUG_PRINT("Reconnecting to Wifi ");
-  // WiFi.printDiag(Serial);
   while (WiFi.status() != WL_CONNECTED) {
     retryCounter--;
     if (retryCounter <= 0) {
-      DEBUG_PRINT(" timeout reached! Wifi Status: ");
-      DEBUG_PRINTLN(WiFi.status());
+      DEBUG_PRINTLN(" timeout reached!");
       return false;
     }
     delay(100);
     DEBUG_PRINT(".");
   }
-  DEBUG_PRINT("Connected, IP address: ");
-  DEBUG_PRINTLN(WiFi.localIP());
+  DEBUG_PRINTLN(" done");
   return true;
 }
 
@@ -157,17 +131,23 @@ void setup(void) {
   dht.begin();          // initialize dht sensor
 
   DEBUG_PRINTLN("\nDHT Weather Reading Server");
+  DEBUG_PRINTLN("My MAC: " + String(WiFi.macAddress()));
 
-  snprintf( pub_topic, 64, "sysensors/%s/temperature", CLIENT_ID );
+  // subscript to the mac address (private) topic
+  // char topic[64];
+  strcat(pub_topic, "/sensor-network/");
+  String clientMac = WiFi.macAddress();
+  strcat(pub_topic, clientMac.c_str());
+  strcat(pub_topic, "/json");
+  // mqttClient.subscribe(topic, 1);
 
   // Start the Pub/Sub client
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
-  mqttClient.setCallback(mqttCallback);
 
   // initializing arrays
   for (int i = 0; i < NUM_CACHE; i++) {
-    humidityValues[i] = NULL;
-    temperatureValues[i] = NULL;
+    humidityValues[i] = 0;
+    temperatureValues[i] = 0;
     millisValues[i] = 0;
   }
 
@@ -184,6 +164,7 @@ void loop(void) {
   if (now - lastMsg > LOOP_SLEEP) {
     long loopDrift = (now - lastMsg) - LOOP_SLEEP;
     DEBUG_PRINTLN("----------------------------------------------------------");
+    DEBUG_PRINTLN("My MAC: " + String(WiFi.macAddress()));
     DEBUG_PRINTLN("Worker loop drift: " + String(loopDrift));
     lastMsg = now;
 
@@ -209,15 +190,16 @@ void loop(void) {
       if (WiFi.status() == WL_CONNECTED) {
         DEBUG_PRINT("Is the MQTT Client already connected? ");
         if (!mqttClient.connected()) {
-          DEBUG_PRINTLN(" No, let's try to reconnect");
+          DEBUG_PRINTLN("No, let's try to reconnect");
           if (! mqttReconnect()) {
             // This should not happen, but seems to...
-            DEBUG_PRINTLN("MQTT was unable to connect! Exiting the upload loop");
+            DEBUG_PRINTLN(" > failed! Exiting the upload loop");
           } else {
+            DEBUG_PRINTLN(" > success");
             readyToUpload = true;
           }
         } else {
-          DEBUG_PRINTLN(" Yes");
+          DEBUG_PRINTLN("Yes");
           readyToUpload = true;
         }
       }
@@ -230,19 +212,18 @@ void loop(void) {
         DEBUG_PRINT("Sending the JSON data ");
         for (int i = 0; i <= NUM_CACHE; i++) {
           if (temperatureValues[i] && humidityValues[i] && humidityValues[i] != 0) {
-             DEBUG_PRINT(".");
-            StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
-            JsonObject& root    = jsonBuffer.createObject();
-            root["id"] = CLIENT_ID;
-            root["h"] = humidityValues[i];
-            root["t"] = temperatureValues[i];
-            root["m"] = millisValues[i];
-            root["now"] = millis();
-            root.printTo(msg, 128);
+            DEBUG_PRINT(".");
+            StaticJsonDocument<SENSORDATA_JSON_SIZE> jsonBuffer;
+            jsonBuffer["id"] = String(WiFi.macAddress());
+            jsonBuffer["h"] = humidityValues[i];
+            jsonBuffer["t"] = temperatureValues[i];
+            jsonBuffer["m"] = millisValues[i];
+            jsonBuffer["now"] = millis();
+            serializeJson(jsonBuffer, msg);
             if (mqttClient.publish(pub_topic, msg)) {
               // Publishing values successful, removing them from cache
-              humidityValues[i] = NULL;
-              temperatureValues[i] = NULL;
+              humidityValues[i] = 0;
+              temperatureValues[i] = 0;
               millisValues[i] = 0;
             }
 
@@ -258,12 +239,10 @@ void loop(void) {
 
       // Put the Wifi to sleep again
       // WiFi.disconnect();
-      // delay(1000);
-      // WiFi.mode(WIFI_OFF);
       // delay(100);
+      // WiFi.mode(WIFI_OFF);
       // WiFi.forceSleepBegin();
-      // WiFi.mode(WIFI_OFF); //  Force the ESP into WIFI off
-      delay(1);
+      delay(100);
     }
 
     // calculate how long our current loop took, and fix the delay, so that the
